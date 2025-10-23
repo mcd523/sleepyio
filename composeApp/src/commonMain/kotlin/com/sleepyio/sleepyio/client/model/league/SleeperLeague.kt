@@ -18,5 +18,5 @@ data class SleeperLeague(
     @SerialName("league_id")
     val leagueId: Long,
     @SerialName("bracket_id")
-    val bracketId: Long
+    val bracketId: Long? = null
 )

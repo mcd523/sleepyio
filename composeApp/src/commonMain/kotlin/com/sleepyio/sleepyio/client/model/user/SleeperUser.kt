@@ -6,11 +6,11 @@ import kotlinx.serialization.Serializable
 @Serializable
 data class SleeperUser(
     @SerialName("username")
-    val userName: String,
+    val userName: String? = null,
     @SerialName("user_id")
-    val userId: Long,
+    val userId: Long? = null,
     @SerialName("display_name")
-    val displayName: String,
+    val displayName: String? = null,
     @SerialName("avatar")
-    val avatar: String?,
+    val avatar: String? = null,
 )

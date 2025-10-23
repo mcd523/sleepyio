@@ -41,7 +41,21 @@ data object SleeperClient {
         }
     }
 
-    fun getLeague(): SleeperLeague {
-        return SleeperLeague("", "", "", "", "", 0L, 0L)
+    suspend fun getLeaguesForUser(userId: String, sport: String, season: String): List<SleeperLeague> {
+        return try {
+            client.get("$USER_PATH/$userId/leagues/$sport/$season").body()
+        } catch (e: Exception) {
+            logger.error(e) { "Error fetching leagues for user $userId" }
+            emptyList()
+        }
+    }
+
+    suspend fun getUsersInLeague(leagueId: String): List<SleeperUser> {
+        return try {
+            client.get("$LEAGUE_PATH/$leagueId/users").body()
+        } catch (e: Exception) {
+            logger.error(e) { "Error fetching users in league $leagueId" }
+            emptyList()
+        }
     }
 }
