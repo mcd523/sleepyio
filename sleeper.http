@@ -1,0 +1,2 @@
+### GET request to example server
+GET https://api.sleeper.app/v1/user/thehippokid
