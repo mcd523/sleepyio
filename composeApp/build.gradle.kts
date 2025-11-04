@@ -64,6 +64,7 @@ kotlin {
             implementation("io.ktor:ktor-serialization-kotlinx-json:${ktor_version}")
             implementation("com.composables:core:1.46.0")
             implementation("io.github.oshai:kotlin-logging:$kotlin_logging_version")
+            implementation("eu.vendeli:rethis:0.3.5")
         }
         commonTest.dependencies {
             implementation(libs.kotlin.test)

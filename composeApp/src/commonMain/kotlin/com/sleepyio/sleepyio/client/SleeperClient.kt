@@ -2,6 +2,8 @@ package com.sleepyio.sleepyio.client
 
 import com.sleepyio.sleepyio.client.model.user.SleeperUser
 import com.sleepyio.sleepyio.client.model.league.SleeperLeague
+import com.sleepyio.sleepyio.client.model.league.SleeperRoster
+import com.sleepyio.sleepyio.client.model.player.SleeperPlayer
 import com.sleepyio.sleepyio.getPlatform
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.ktor.client.HttpClient
@@ -29,12 +31,9 @@ data object SleeperClient {
     private const val USER_PATH = "$BASE_URL/user"
     private const val LEAGUE_PATH = "$BASE_URL/league"
 
-    suspend fun getUser(): SleeperUser {
+    suspend fun getUser(username: String): SleeperUser {
         return try {
-            val response = client.get("$USER_PATH/thehippokid")
-            logger.info { "Status: ${response.status}" }
-            response.body()
-//            SleeperUser(response.status.toString(), 0L, "")
+            client.get("$USER_PATH/$username").body()
         } catch (e: Exception) {
             logger.error(e) { "Error fetching user data" }
             SleeperUser("Error: ${e.message}", 0L, e.cause?.message.toString(), null)
@@ -56,6 +55,24 @@ data object SleeperClient {
         } catch (e: Exception) {
             logger.error(e) { "Error fetching users in league $leagueId" }
             emptyList()
+        }
+    }
+
+    suspend fun getRostersInLeague(leagueId: String): List<SleeperRoster> {
+        return try {
+            client.get("$LEAGUE_PATH/$leagueId/rosters").body()
+        } catch (e: Exception) {
+            logger.error(e) { "Error fetching rosters in league $leagueId" }
+            emptyList()
+        }
+    }
+
+    suspend fun getAllPlayers(sport: String = "nfl"): Map<String, SleeperPlayer> {
+        return try {
+            client.get("$BASE_URL/players/$sport").body()
+        } catch (e: Exception) {
+            logger.error(e) { "Error fetching all players for sport $sport" }
+            emptyMap()
         }
     }
 }
