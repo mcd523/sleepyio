@@ -8,15 +8,20 @@ import com.composeunstyled.theme.buildTheme
 val colors = ThemeProperty<Color>("colors")
 val background = ThemeToken<Color>("background")
 val onBackground = ThemeToken<Color>("on_background")
+val primary = ThemeToken<Color>("primary")
+val secondary = ThemeToken<Color>("secondary")
+val error = ThemeToken<Color>("error")
+val surface = ThemeToken<Color>("surface")
+val onSurface = ThemeToken<Color>("on_surface")
 
 val MyTheme = buildTheme {
     properties[colors] = mapOf(
-        background to Color(0x0f1069),      // Subtle off-white background
-        onBackground to Color(0xFF2E2E2E),   // Dark gray text for readability
-        ThemeToken<Color>("primary") to Color(0xFF6366F1),      // Modern indigo
-        ThemeToken<Color>("secondary") to Color(0xFF8B5CF6),    // Soft purple accent
-        ThemeToken<Color>("error") to Color(0xFFEF4444),        // Modern red for errors
-        ThemeToken<Color>("surface") to Color(0x00000000),      // Clean white surface
-        ThemeToken<Color>("on_surface") to Color(0xFF374151),   // Medium gray for surface text
+        background to Color(0xFF000000),      // Pure black background
+        onBackground to Color(0xFFFFFFFF),   // Pure white text for maximum contrast
+        primary to Color(0xFF00FF00),        // Bright green
+        secondary to Color(0xFFFF6600),      // Bright orange
+        error to Color(0xFFFF0000),          // Pure red for errors
+        surface to Color(0xFF0066FF),        // Bright blue surface
+        onSurface to Color(0xFFFFFF00),      // Bright yellow for surface text
     )
 }

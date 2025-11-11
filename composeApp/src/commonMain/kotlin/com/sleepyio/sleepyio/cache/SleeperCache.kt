@@ -28,10 +28,13 @@ object SleeperCache {
             client.del(canary)
             null
         }
+        val now = Clock.System.now()
+
         // if lastUpdate is less than 24 hours ago, skip initialization
-        if (lastUpdate != null && Clock.System.now() - lastUpdate < refreshPeriod) {
+        if (lastUpdate != null && now - lastUpdate < refreshPeriod) {
             val nextRefresh = lastUpdate + refreshPeriod
-            logger.info { "SleeperCache already initialized. Next refresh will occur at $nextRefresh" }
+            val timeToRefresh = nextRefresh - now
+            logger.info { "SleeperCache already initialized. Next refresh will occur in $timeToRefresh at $nextRefresh" }
             return
         }
 
@@ -45,7 +48,7 @@ object SleeperCache {
             client.set(id, player)
         }
         logger.info { "Cached ${players.size} players." }
-        client.set(canary, Clock.System.now())
+        client.set(canary, now)
     }
 
     suspend fun getPlayer(playerId: String): SleeperPlayer? {

@@ -5,6 +5,7 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.safeContentPadding
@@ -17,6 +18,7 @@ import androidx.compose.ui.Modifier
 import com.composeunstyled.theme.Theme
 import com.sleepyio.sleepyio.cache.SleeperCache
 import com.sleepyio.sleepyio.client.SleeperClient
+import com.sleepyio.sleepyio.client.model.league.SleeperLeague
 import com.sleepyio.sleepyio.client.model.user.SleeperUser
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -40,7 +42,8 @@ fun App() {
     MyTheme {
         var username by remember { mutableStateOf("thehippokid") }
         var user: SleeperUser? by remember { mutableStateOf(null) }
-        var selectedLeagueId: String? by remember { mutableStateOf(null) }
+        var selectedLeague: SleeperLeague? by remember { mutableStateOf(null) }
+        var showBfsView by remember { mutableStateOf(false) }
         Column(
             modifier = Modifier
                 .background(Theme[colors][background])
@@ -55,20 +58,20 @@ fun App() {
                     }
                 }
             }
-
+            Image(painterResource(Res.drawable.sleeper_logo), null)
             TextField(
                 modifier = Modifier
-                    .background(Theme[colors][background]),
+                    .background(Theme[colors][onBackground]),
                 value = username,
                 onValueChange = { username = it },
-                label = { com.composeunstyled.Text("Enter Sleeper Username") }
+                label = { Text("Enter Sleeper Username") }
             )
             Button(
                 modifier = Modifier
                     .background(Theme[colors][background]),
                 onClick = getUserOnClick
             ) {
-                com.composeunstyled.Text("Click me!")
+                Text("Click me!")
             }
             AnimatedVisibility(user != null) {
                 Box(modifier = Modifier.fillMaxSize()) {
@@ -76,16 +79,26 @@ fun App() {
                         modifier = Modifier.fillMaxWidth(),
                         horizontalAlignment = Alignment.CenterHorizontally,
                     ) {
-                        Image(painterResource(Res.drawable.sleeper_logo), null)
                         Text("User: ${user?.userName}")
                         user?.let {
-                            if (selectedLeagueId == null) {
-                                LeagueTable(it) { leagueId ->
-                                    selectedLeagueId = leagueId
+                            Button(onClick = { showBfsView = true }) {
+                                Text("🔍 Explore League Network")
+                            }
+                            if (showBfsView) {
+                                LeagueBfsView(
+                                    initialUser = it,
+                                    sport = "nfl",
+                                    season = "2025",
+                                    onBack = { showBfsView = false },
+                                )
+                            }
+                            if (selectedLeague == null) {
+                                LeagueTable(it) { league ->
+                                    selectedLeague = league
                                 }
                             } else {
-                                TeamsView(selectedLeagueId!!) {
-                                    selectedLeagueId = null
+                                TeamsView(selectedLeague!!) {
+                                    selectedLeague = null
                                 }
                             }
                         }

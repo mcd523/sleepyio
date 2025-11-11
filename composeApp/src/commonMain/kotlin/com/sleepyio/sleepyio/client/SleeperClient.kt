@@ -17,6 +17,9 @@ data object SleeperClient {
     private val logger = KotlinLogging.logger {  }
     private val platform = getPlatform()
     private val client = HttpClient(platform.clientEngine) {
+        engine {
+            this.dispatcher
+        }
         install(ContentNegotiation) {
             json(Json {
                 prettyPrint = true
@@ -49,7 +52,7 @@ data object SleeperClient {
         }
     }
 
-    suspend fun getUsersInLeague(leagueId: String): List<SleeperUser> {
+    suspend fun getUsersInLeague(leagueId: Long): List<SleeperUser> {
         return try {
             client.get("$LEAGUE_PATH/$leagueId/users").body()
         } catch (e: Exception) {
@@ -58,7 +61,7 @@ data object SleeperClient {
         }
     }
 
-    suspend fun getRostersInLeague(leagueId: String): List<SleeperRoster> {
+    suspend fun getRostersInLeague(leagueId: Long): List<SleeperRoster> {
         return try {
             client.get("$LEAGUE_PATH/$leagueId/rosters").body()
         } catch (e: Exception) {

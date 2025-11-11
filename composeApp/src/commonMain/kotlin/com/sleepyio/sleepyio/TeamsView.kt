@@ -30,10 +30,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.composeunstyled.theme.Theme
 import com.sleepyio.sleepyio.cache.SleeperCache
 import com.sleepyio.sleepyio.client.SleeperClient
+import com.sleepyio.sleepyio.client.model.league.SleeperLeague
 import com.sleepyio.sleepyio.client.model.user.SleeperUser
 import com.sleepyio.sleepyio.client.model.league.SleeperRoster
+import com.sleepyio.sleepyio.client.model.player.SleeperPlayer
 import com.sleepyio.sleepyio.util.pmap
 import kotlinx.coroutines.async
 import org.jetbrains.compose.ui.tooling.preview.Preview
@@ -45,7 +48,7 @@ data class UserWithRoster(
 
 @Composable
 @Preview
-fun TeamsView(leagueId: String, onBack: () -> Unit = {}) {
+fun TeamsView(league: SleeperLeague, onBack: () -> Unit = {}) {
     val client = remember { SleeperClient }
     var usersWithRosters: List<UserWithRoster> by remember { mutableStateOf(listOf()) }
     var isLoading by remember { mutableStateOf(true) }
@@ -59,21 +62,35 @@ fun TeamsView(leagueId: String, onBack: () -> Unit = {}) {
             ) {
                 Column {
                     // Back button
-                    Button(
-                        onClick = onBack,
-                        modifier = Modifier.padding(bottom = 16.dp)
-                    ) {
-                        Text("← Back to Leagues")
+                    Row {
+                        Button(
+                            onClick = onBack,
+                            modifier = Modifier.padding(bottom = 16.dp)
+                        ) {
+                            Text("← Back to Leagues")
+                        }
+                        if (isLoading) {
+                            Text(
+                                "Loading teams and rosters...",
+                                style = MaterialTheme.typography.bodyLarge,
+                                fontWeight = FontWeight.Medium,
+                                modifier = Modifier
+                                    .align(Alignment.CenterVertically)
+                                    .padding(start = 16.dp)
+                            )
+                        } else {
+                            Text(
+                                text = "${league.leagueName} - Teams and Rosters",
+                                style = MaterialTheme.typography.headlineSmall,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier
+                                    .align(Alignment.CenterVertically)
+                                    .padding(start = 16.dp)
+                            )
+                        }
                     }
-
-                    if (isLoading) {
-                        Text(
-                            "Loading teams and rosters...",
-                            modifier = Modifier.padding(16.dp),
-                            style = MaterialTheme.typography.bodyLarge
-                        )
-                    } else {
-                        // Teams list with rosters
+                    // Teams list with rosters
+                    if (!isLoading) {
                         LazyColumn(
                             modifier = Modifier.fillMaxWidth(),
                             verticalArrangement = Arrangement.spacedBy(8.dp)
@@ -89,13 +106,13 @@ fun TeamsView(leagueId: String, onBack: () -> Unit = {}) {
     }
 
     // Load users and rosters when the component is created
-    LaunchedEffect(leagueId) {
+    LaunchedEffect(league) {
         try {
             val usersDeferred = async {
-                client.getUsersInLeague(leagueId)
+                client.getUsersInLeague(league.leagueId)
             }
             val rostersDeferred = async {
-                client.getRostersInLeague(leagueId).pmap { roster ->
+                client.getRostersInLeague(league.leagueId).pmap { roster ->
                     val players = roster.players.pmap { playerId ->
                         SleeperCache.getPlayer(playerId)
                     }.filterNotNull()
@@ -112,7 +129,7 @@ fun TeamsView(leagueId: String, onBack: () -> Unit = {}) {
                 val roster = rosters.find { it.ownerId == user.userId }
                 UserWithRoster(user, roster)
             }
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             // Handle error - could show error message
             usersWithRosters = listOf()
         } finally {
@@ -128,6 +145,7 @@ fun TeamCard(userWithRoster: UserWithRoster) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
+            .background(Theme[colors][surface])
             .clickable { expanded = !expanded }
             .padding(horizontal = 16.dp),
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
@@ -193,6 +211,16 @@ fun TeamCard(userWithRoster: UserWithRoster) {
 
 @Composable
 fun RosterDetails(roster: SleeperRoster) {
+    // Display starters in the correct order, similar to Sleeper order
+    val comparePlayers = Comparator<SleeperPlayer> { p1, p2 ->
+        val posOrder = listOf("QB", "RB", "WR", "TE", "K", "DEF")
+        val p1Index = posOrder.indexOf(p1.position ?: "")
+        val p2Index = posOrder.indexOf(p2.position ?: "")
+        when {
+            p1Index != p2Index -> p1Index - p2Index
+            else -> (p1.lastName ?: "").compareTo(p2.lastName ?: "")
+        }
+    }
     Column {
         // Starters section
         Text(
@@ -204,11 +232,10 @@ fun RosterDetails(roster: SleeperRoster) {
         Spacer(modifier = Modifier.height(4.dp))
 
         if (roster.fullStarters.isNotEmpty()) {
-            roster.fullStarters.forEachIndexed { index, playerId ->
-                Text(
-                    text = "${index + 1}. Player ID: $playerId",
-                    style = MaterialTheme.typography.bodyMedium,
-                    modifier = Modifier.padding(start = 8.dp)
+            roster.fullStarters.sortedWith(comparePlayers).forEach { player ->
+                PlayerMetadataView(
+                    player = player,
+                    modifier = Modifier.padding(start = 8.dp, bottom = 4.dp)
                 )
             }
         } else {
@@ -233,11 +260,10 @@ fun RosterDetails(roster: SleeperRoster) {
         Spacer(modifier = Modifier.height(4.dp))
 
         if (benchPlayers.isNotEmpty()) {
-            benchPlayers.forEachIndexed { index, player ->
-                Text(
-                    text = "${index + 1}. Player ID: $player",
-                    style = MaterialTheme.typography.bodyMedium,
-                    modifier = Modifier.padding(start = 8.dp)
+            benchPlayers.forEach { player ->
+                PlayerMetadataView(
+                    player = player,
+                    modifier = Modifier.padding(start = 8.dp, bottom = 4.dp)
                 )
             }
         } else {
@@ -258,5 +284,115 @@ fun RosterDetails(roster: SleeperRoster) {
             fontWeight = FontWeight.Medium,
             color = MaterialTheme.colorScheme.onSurface
         )
+    }
+}
+
+@Composable
+fun PlayerMetadataView(player: SleeperPlayer, modifier: Modifier = Modifier) {
+    Card(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(vertical = 2.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+        )
+    ) {
+        Column(
+            modifier = Modifier.padding(12.dp)
+        ) {
+            // Player name and position
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    val fullName = buildString {
+                        player.firstName?.let { append(it) }
+                        if (player.firstName != null && player.lastName != null) append(" ")
+                        player.lastName?.let { append(it) }
+                    }.takeIf { it.isNotBlank() } ?: "Unknown Player"
+
+                    Text(
+                        text = fullName,
+                        style = MaterialTheme.typography.bodyLarge,
+                        fontWeight = FontWeight.Bold
+                    )
+
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = player.position ?: "N/A",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.primary,
+                            fontWeight = FontWeight.Medium
+                        )
+
+                        player.team?.let { team ->
+                            Text(
+                                text = " • $team",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+
+                        // Jersey number
+                        player.number?.let { number ->
+                            Text(
+                                text = " #$number",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                }
+
+                // Injury status indicator
+                player.injuryStatus?.let { status ->
+                    if (status.lowercase() != "healthy") {
+                        Text(
+                            text = "⚠️ ${status.uppercase()}",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.error,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+            }
+
+            // Additional metadata row
+            Spacer(modifier = Modifier.height(4.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                // Physical attributes
+                val physicalInfo = buildList {
+                    player.age?.let { add("Age: $it") }
+                    player.height?.let { add("Height: $it") }
+                    player.weight?.let { add("Weight: $it lbs") }
+                }.joinToString(" • ")
+
+                if (physicalInfo.isNotEmpty()) {
+                    Text(
+                        text = physicalInfo,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+
+                // College
+                player.college?.let { college ->
+                    Text(
+                        text = college,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontWeight = FontWeight.Medium
+                    )
+                }
+            }
+        }
     }
 }
