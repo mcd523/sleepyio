@@ -1,4 +1,4 @@
-This is a Kotlin Multiplatform project targeting Android, iOS, Web, Desktop (JVM).
+Welcome to sleepy.io, a fun project to combine my love of fantasy football and my curiosity towards new technologies. This is a Kotlin Multiplatform project that uses Compose Multiplatform for the UI and targets Android, iOS, Desktop (JVM), and Web (Wasm and JS).
 
 * [/composeApp](./composeApp/src) is for code that will be shared across your Compose Multiplatform applications.
   It contains several subfolders:
