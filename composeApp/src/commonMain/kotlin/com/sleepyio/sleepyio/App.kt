@@ -1,110 +1,239 @@
 package com.sleepyio.sleepyio
 
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeContentPadding
 import androidx.compose.material3.Button
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
 import com.composeunstyled.theme.Theme
 import com.sleepyio.sleepyio.cache.SleeperCache
 import com.sleepyio.sleepyio.client.SleeperClient
 import com.sleepyio.sleepyio.client.model.league.SleeperLeague
 import com.sleepyio.sleepyio.client.model.user.SleeperUser
-import kotlinx.coroutines.Dispatchers
+import com.sleepyio.sleepyio.ui.league.LeagueStateScreen
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.ui.tooling.preview.Preview
-
 import sleepyio.composeapp.generated.resources.Res
 import sleepyio.composeapp.generated.resources.sleeper_logo
+
+// Navigation states
+enum class NavigationScreen {
+    USER_LOGIN,
+    LEAGUE_LIST,
+    LEAGUE_STATE
+}
 
 @Composable
 @Preview
 fun App() {
-    val scope = rememberCoroutineScope()
-    val client = remember { SleeperClient }
     val cache by produceState(initialValue = SleeperCache, producer = {
         SleeperCache.init()
         value = SleeperCache
     })
 
     MyTheme {
+        var currentScreen by remember { mutableStateOf(NavigationScreen.USER_LOGIN) }
         var username by remember { mutableStateOf("thehippokid") }
         var user: SleeperUser? by remember { mutableStateOf(null) }
         var selectedLeague: SleeperLeague? by remember { mutableStateOf(null) }
-        var showBfsView by remember { mutableStateOf(false) }
-        Column(
+
+        Box(
             modifier = Modifier
                 .background(Theme[colors][background])
                 .safeContentPadding()
-                .fillMaxSize(),
-            horizontalAlignment = Alignment.CenterHorizontally,
+                .fillMaxSize()
         ) {
-            val getUserOnClick: () -> Unit = {
-                scope.launch {
-                    withContext(Dispatchers.Default) {
-                        user = client.getUser(username)
+            when (currentScreen) {
+                NavigationScreen.USER_LOGIN -> {
+                    UserLoginScreen(
+                        initialUsername = username,
+                        onUserFound = { foundUser ->
+                            user = foundUser
+                            currentScreen = NavigationScreen.LEAGUE_LIST
+                        },
+                        onUsernameChanged = { username = it }
+                    )
+                }
+
+                NavigationScreen.LEAGUE_LIST -> {
+                    user?.let { currentUser ->
+                        LeagueListScreen(
+                            user = currentUser,
+                            onLeagueSelected = { league ->
+                                selectedLeague = league
+                                currentScreen = NavigationScreen.LEAGUE_STATE
+                            },
+                            onBackToLogin = {
+                                currentScreen = NavigationScreen.USER_LOGIN
+                                user = null
+                                selectedLeague = null
+                            }
+                        )
                     }
                 }
-            }
-            Image(painterResource(Res.drawable.sleeper_logo), null)
-            TextField(
-                modifier = Modifier
-                    .background(Theme[colors][onBackground]),
-                value = username,
-                onValueChange = { username = it },
-                label = { Text("Enter Sleeper Username") }
-            )
-            Button(
-                modifier = Modifier
-                    .background(Theme[colors][background]),
-                onClick = getUserOnClick
-            ) {
-                Text("Click me!")
-            }
-            AnimatedVisibility(user != null) {
-                Box(modifier = Modifier.fillMaxSize()) {
-                    Column(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                    ) {
-                        Text("User: ${user?.userName}")
-                        user?.let {
-                            Button(onClick = { showBfsView = true }) {
-                                Text("🔍 Explore League Network")
+
+                NavigationScreen.LEAGUE_STATE -> {
+                    selectedLeague?.let { league ->
+                        LeagueStateNavigationScreen(
+                            league = league,
+                            onBackToLeagues = {
+                                currentScreen = NavigationScreen.LEAGUE_LIST
+                                selectedLeague = null
                             }
-                            if (showBfsView) {
-                                LeagueBfsView(
-                                    initialUser = it,
-                                    sport = "nfl",
-                                    season = "2025",
-                                    onBack = { showBfsView = false },
-                                )
-                            }
-                            if (selectedLeague == null) {
-                                LeagueTable(it) { league ->
-                                    selectedLeague = league
-                                }
-                            } else {
-                                TeamsView(selectedLeague!!) {
-                                    selectedLeague = null
-                                }
-                            }
-                        }
+                        )
                     }
                 }
             }
         }
+    }
+}
+
+@Composable
+fun UserLoginScreen(
+    initialUsername: String,
+    onUserFound: (SleeperUser) -> Unit,
+    onUsernameChanged: (String) -> Unit
+) {
+    val scope = rememberCoroutineScope()
+    val client = remember { SleeperClient }
+    var username by remember { mutableStateOf(initialUsername) }
+    var isLoading by remember { mutableStateOf(false) }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
+
+    Column(
+        modifier = Modifier.fillMaxSize(),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        Image(
+            painter = painterResource(Res.drawable.sleeper_logo),
+            contentDescription = "Sleeper Logo"
+        )
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        TextField(
+            value = username,
+            onValueChange = {
+                username = it
+                onUsernameChanged(it)
+                errorMessage = null
+            },
+            label = { Text("Enter Sleeper Username") },
+            enabled = !isLoading
+        )
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        Button(
+            onClick = {
+                scope.launch {
+                    isLoading = true
+                    errorMessage = null
+                    try {
+                        val foundUser = client.getUser(username)
+                        if (foundUser != null) {
+                            onUserFound(foundUser)
+                        } else {
+                            errorMessage = "User not found"
+                        }
+                    } catch (e: Exception) {
+                        errorMessage = "Error: ${e.message}"
+                    } finally {
+                        isLoading = false
+                    }
+                }
+            },
+            enabled = !isLoading && username.isNotBlank()
+        ) {
+            Text(if (isLoading) "Loading..." else "Find User")
+        }
+
+        errorMessage?.let { error ->
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = error,
+                color = MaterialTheme.colorScheme.error
+            )
+        }
+    }
+}
+
+@Composable
+fun LeagueListScreen(
+    user: SleeperUser,
+    onLeagueSelected: (SleeperLeague) -> Unit,
+    onBackToLogin: () -> Unit
+) {
+    Column(
+        modifier = Modifier.fillMaxSize()
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Button(onClick = onBackToLogin) {
+                Text("← Back")
+            }
+            Text(
+                text = "Welcome, ${user.displayName ?: user.userName ?: "User"}",
+                style = MaterialTheme.typography.headlineSmall
+            )
+        }
+
+        LeagueTable(
+            user = user,
+            onLeagueClick = onLeagueSelected
+        )
+    }
+}
+
+@Composable
+fun LeagueStateNavigationScreen(
+    league: SleeperLeague,
+    onBackToLeagues: () -> Unit
+) {
+    Column(
+        modifier = Modifier.fillMaxSize()
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Button(onClick = onBackToLeagues) {
+                Text("← Back to Leagues")
+            }
+            Text(
+                text = league.leagueName ?: "League",
+                style = MaterialTheme.typography.headlineSmall
+            )
+        }
+
+        LeagueStateScreen(
+            leagueId = league.leagueId,
+            modifier = Modifier.fillMaxSize()
+        )
     }
 }
