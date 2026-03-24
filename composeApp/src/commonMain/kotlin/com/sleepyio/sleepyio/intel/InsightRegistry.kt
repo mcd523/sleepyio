@@ -11,6 +11,10 @@ import com.sleepyio.sleepyio.intel.modules.ConvergentInterestModule
 import com.sleepyio.sleepyio.intel.modules.ShadowRosterModule
 import com.sleepyio.sleepyio.intel.modules.FAABIntelModule
 import com.sleepyio.sleepyio.intel.modules.WaiverPatternModule
+import com.sleepyio.sleepyio.intel.modules.TradeNetworkModule
+import com.sleepyio.sleepyio.intel.modules.AnomalyDetectorModule
+import com.sleepyio.sleepyio.intel.modules.ThreatLevelModule
+import com.sleepyio.sleepyio.intel.modules.CounterIntelModule
 
 object InsightRegistry {
     private val modules = mutableListOf<InsightModule<*>>()
@@ -33,6 +37,17 @@ object InsightRegistry {
         return modules.filterIsInstance<SurveillanceInsightModule<*>>()
     }
 
+    /**
+     * Returns surveillance modules in two-pass execution order:
+     * Pass 1: all modules except ThreatLevel (independent analyses)
+     * Pass 2: ThreatLevel last (composite scoring from raw data)
+     */
+    fun getTwoPassModules(): List<SurveillanceInsightModule<*>> {
+        val all = getSurveillanceModules()
+        val (threatModules, otherModules) = all.partition { it.id == ThreatLevelModule.id }
+        return otherModules + threatModules
+    }
+
     init {
         register(HeadToHeadModule)
         register(VulnerabilityModule)
@@ -46,5 +61,11 @@ object InsightRegistry {
         register(ShadowRosterModule)
         register(FAABIntelModule)
         register(WaiverPatternModule)
+
+        // Phase 4: Advanced modules (Tier 3 / Deep)
+        register(TradeNetworkModule)
+        register(AnomalyDetectorModule)
+        register(CounterIntelModule)
+        register(ThreatLevelModule)
     }
 }
