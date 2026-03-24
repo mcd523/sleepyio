@@ -46,7 +46,7 @@ fun CrossLeagueFeedScreen(
     }
 
     val filteredEvents = feedState.events.filter { it.matchesFilter(selectedFilter) }
-    val groupedByWeek = filteredEvents.groupBy { it.week }.toSortedMap(compareByDescending { it })
+    val groupedByWeek = filteredEvents.groupBy { it.week }.entries.sortedByDescending { it.key }
 
     Column(modifier = modifier.fillMaxSize().padding(SleeperSpacing.md)) {
         // Title with loading indicator
@@ -104,7 +104,9 @@ fun CrossLeagueFeedScreen(
             }
             else -> {
                 LazyColumn(verticalArrangement = Arrangement.spacedBy(SleeperSpacing.sm)) {
-                    groupedByWeek.forEach { (week, weekEvents) ->
+                    groupedByWeek.forEach { entry ->
+                        val week = entry.key
+                        val weekEvents = entry.value
                         item {
                             Text(
                                 text = if (week == 0) "PRE-SEASON" else "WEEK $week",
@@ -266,14 +268,14 @@ private fun MatchupContent(event: FeedEvent.MatchupResult) {
             fontSize = SleeperType.body
         )
         Text(
-            "%.1f".format(event.userScore),
+            "${(event.userScore * 10).toInt() / 10.0}",
             fontWeight = FontWeight.SemiBold,
             color = if (event.won) Color(0xFF68D391) else Color(0xFFFC8181),
             fontSize = SleeperType.body
         )
         Text("vs", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = SleeperType.body)
         Text(
-            "%.1f".format(event.opponentScore),
+            "${(event.opponentScore * 10).toInt() / 10.0}",
             fontSize = SleeperType.body
         )
         Text(event.opponentName, fontSize = SleeperType.body)
