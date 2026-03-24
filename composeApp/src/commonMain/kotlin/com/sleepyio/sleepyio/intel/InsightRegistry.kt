@@ -7,6 +7,10 @@ import com.sleepyio.sleepyio.intel.modules.RosterCompositionModule
 import com.sleepyio.sleepyio.intel.modules.ScoringTrendModule
 import com.sleepyio.sleepyio.intel.modules.TransactionActivityModule
 import com.sleepyio.sleepyio.intel.modules.VulnerabilityModule
+import com.sleepyio.sleepyio.intel.modules.ConvergentInterestModule
+import com.sleepyio.sleepyio.intel.modules.ShadowRosterModule
+import com.sleepyio.sleepyio.intel.modules.FAABIntelModule
+import com.sleepyio.sleepyio.intel.modules.WaiverPatternModule
 
 object InsightRegistry {
     private val modules = mutableListOf<InsightModule<*>>()
@@ -36,5 +40,11 @@ object InsightRegistry {
         register(DraftTendencyModule)
         register(ScoringTrendModule)
         register(RosterCompositionModule)
+
+        // Phase 2: Espionage modules
+        register(ConvergentInterestModule)
+        register(ShadowRosterModule)
+        register(FAABIntelModule)
+        register(WaiverPatternModule)
     }
 }
