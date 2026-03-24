@@ -15,15 +15,15 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 
-class LeaguemateRepository(
-    private val myUserId: String
+open class LeaguemateRepository(
+    protected val myUserId: String
 ) {
-    private val sharedLeaguesCache = mutableMapOf<String, List<SleeperLeague>>()
-    private val rosterCache = mutableMapOf<Long, List<SleeperRoster>>()
-    private val userCache = mutableMapOf<Long, List<SleeperUser>>()
-    private val leagueHistoryCache = mutableMapOf<Long, List<SleeperLeague>>()
-    private val matchupCache = mutableMapOf<Pair<Long, Int>, List<SleeperMatchup>>()
-    private val transactionCache = mutableMapOf<Long, List<SleeperTransaction>>()
+    protected val sharedLeaguesCache = mutableMapOf<String, List<SleeperLeague>>()
+    protected val rosterCache = mutableMapOf<Long, List<SleeperRoster>>()
+    protected val userCache = mutableMapOf<Long, List<SleeperUser>>()
+    protected val leagueHistoryCache = mutableMapOf<Long, List<SleeperLeague>>()
+    protected val matchupCache = mutableMapOf<Pair<Long, Int>, List<SleeperMatchup>>()
+    protected val transactionCache = mutableMapOf<Long, List<SleeperTransaction>>()
     private var nflStateCache: com.sleepyio.sleepyio.client.model.league.SleeperState? = null
 
     suspend fun getNflState(): com.sleepyio.sleepyio.client.model.league.SleeperState? {

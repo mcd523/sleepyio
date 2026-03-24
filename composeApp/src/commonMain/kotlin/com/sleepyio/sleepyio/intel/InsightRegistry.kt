@@ -1,5 +1,6 @@
 package com.sleepyio.sleepyio.intel
 
+import com.sleepyio.sleepyio.intel.model.IntelCategory
 import com.sleepyio.sleepyio.intel.modules.DraftTendencyModule
 import com.sleepyio.sleepyio.intel.modules.HeadToHeadModule
 import com.sleepyio.sleepyio.intel.modules.RosterCompositionModule
@@ -17,6 +18,16 @@ object InsightRegistry {
     fun getAll(): List<InsightModule<*>> = modules.toList()
 
     fun getById(id: String): InsightModule<*>? = modules.find { it.id == id }
+
+    fun getByCategory(category: IntelCategory): List<InsightModule<*>> {
+        return modules.filter { module ->
+            module is SurveillanceInsightModule<*> && module.category == category
+        }
+    }
+
+    fun getSurveillanceModules(): List<SurveillanceInsightModule<*>> {
+        return modules.filterIsInstance<SurveillanceInsightModule<*>>()
+    }
 
     init {
         register(HeadToHeadModule)
