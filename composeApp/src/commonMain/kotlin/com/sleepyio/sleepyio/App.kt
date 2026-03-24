@@ -4,13 +4,10 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeContentPadding
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
@@ -19,13 +16,13 @@ import androidx.compose.material3.TextField
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.dp
-import com.composeunstyled.theme.Theme
+
 import com.sleepyio.sleepyio.cache.SleeperCache
 import com.sleepyio.sleepyio.client.SleeperClient
 import com.sleepyio.sleepyio.client.model.league.SleeperLeague
 import com.sleepyio.sleepyio.client.model.user.SleeperUser
-import com.sleepyio.sleepyio.ui.league.LeagueStateScreen
+import com.sleepyio.sleepyio.ui.home.HomeShellScreen
+import com.sleepyio.sleepyio.ui.shell.LeagueShellScreen
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.ui.tooling.preview.Preview
@@ -35,8 +32,8 @@ import sleepyio.composeapp.generated.resources.sleeper_logo
 // Navigation states
 enum class NavigationScreen {
     USER_LOGIN,
-    LEAGUE_LIST,
-    LEAGUE_STATE
+    HOME_SHELL,
+    LEAGUE_DETAIL
 }
 
 @Composable
@@ -47,15 +44,17 @@ fun App() {
         value = SleeperCache
     })
 
-    MyTheme {
+    SleeperTheme {
+        val scope = rememberCoroutineScope()
         var currentScreen by remember { mutableStateOf(NavigationScreen.USER_LOGIN) }
         var username by remember { mutableStateOf("thehippokid") }
         var user: SleeperUser? by remember { mutableStateOf(null) }
         var selectedLeague: SleeperLeague? by remember { mutableStateOf(null) }
+        var allLeagues by remember { mutableStateOf<List<SleeperLeague>>(emptyList()) }
 
         Box(
             modifier = Modifier
-                .background(Theme[colors][background])
+                .background(MaterialTheme.colorScheme.background)
                 .safeContentPadding()
                 .fillMaxSize()
         ) {
@@ -65,38 +64,42 @@ fun App() {
                         initialUsername = username,
                         onUserFound = { foundUser ->
                             user = foundUser
-                            currentScreen = NavigationScreen.LEAGUE_LIST
+                            // Fetch leagues immediately after login
+                            scope.launch {
+                                val nflState = SleeperClient.getNflState()
+                                val season = nflState?.season ?: "2025"
+                                allLeagues = SleeperClient.getLeaguesForUser(
+                                    foundUser.userId.toString(), "nfl", season
+                                )
+                                currentScreen = NavigationScreen.HOME_SHELL
+                            }
                         },
                         onUsernameChanged = { username = it }
                     )
                 }
 
-                NavigationScreen.LEAGUE_LIST -> {
+                NavigationScreen.HOME_SHELL -> {
                     user?.let { currentUser ->
-                        LeagueListScreen(
+                        HomeShellScreen(
                             user = currentUser,
+                            leagues = allLeagues,
                             onLeagueSelected = { league ->
                                 selectedLeague = league
-                                currentScreen = NavigationScreen.LEAGUE_STATE
-                            },
-                            onBackToLogin = {
-                                currentScreen = NavigationScreen.USER_LOGIN
-                                user = null
-                                selectedLeague = null
+                                currentScreen = NavigationScreen.LEAGUE_DETAIL
                             }
                         )
                     }
                 }
 
-                NavigationScreen.LEAGUE_STATE -> {
+                NavigationScreen.LEAGUE_DETAIL -> {
                     selectedLeague?.let { league ->
-                        LeagueStateNavigationScreen(
-                            league = league,
-                            onBackToLeagues = {
-                                currentScreen = NavigationScreen.LEAGUE_LIST
-                                selectedLeague = null
-                            }
-                        )
+                        user?.let { currentUser ->
+                            LeagueShellScreen(
+                                league = league,
+                                user = currentUser,
+                                onBack = { currentScreen = NavigationScreen.HOME_SHELL }
+                            )
+                        }
                     }
                 }
             }
@@ -126,7 +129,7 @@ fun UserLoginScreen(
             contentDescription = "Sleeper Logo"
         )
 
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(SleeperSpacing.md))
 
         TextField(
             value = username,
@@ -139,7 +142,7 @@ fun UserLoginScreen(
             enabled = !isLoading
         )
 
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(SleeperSpacing.md))
 
         Button(
             onClick = {
@@ -166,74 +169,11 @@ fun UserLoginScreen(
         }
 
         errorMessage?.let { error ->
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(SleeperSpacing.sm))
             Text(
                 text = error,
                 color = MaterialTheme.colorScheme.error
             )
         }
-    }
-}
-
-@Composable
-fun LeagueListScreen(
-    user: SleeperUser,
-    onLeagueSelected: (SleeperLeague) -> Unit,
-    onBackToLogin: () -> Unit
-) {
-    Column(
-        modifier = Modifier.fillMaxSize()
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Button(onClick = onBackToLogin) {
-                Text("← Back")
-            }
-            Text(
-                text = "Welcome, ${user.displayName ?: user.userName ?: "User"}",
-                style = MaterialTheme.typography.headlineSmall
-            )
-        }
-
-        LeagueTable(
-            user = user,
-            onLeagueClick = onLeagueSelected
-        )
-    }
-}
-
-@Composable
-fun LeagueStateNavigationScreen(
-    league: SleeperLeague,
-    onBackToLeagues: () -> Unit
-) {
-    Column(
-        modifier = Modifier.fillMaxSize()
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Button(onClick = onBackToLeagues) {
-                Text("← Back to Leagues")
-            }
-            Text(
-                text = league.leagueName ?: "League",
-                style = MaterialTheme.typography.headlineSmall
-            )
-        }
-
-        LeagueStateScreen(
-            leagueId = league.leagueId,
-            modifier = Modifier.fillMaxSize()
-        )
     }
 }
