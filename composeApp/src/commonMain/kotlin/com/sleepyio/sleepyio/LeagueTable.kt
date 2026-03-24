@@ -42,7 +42,15 @@ fun LeagueTable(
     var isLoading by remember { mutableStateOf(preloadedLeagues == null) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
 
-    // Load leagues when component is first created
+    // Update leagues when preloadedLeagues changes
+    LaunchedEffect(preloadedLeagues) {
+        if (preloadedLeagues != null) {
+            leagues = preloadedLeagues
+            isLoading = false
+        }
+    }
+
+    // Load leagues when component is first created (only if no preloaded data)
     LaunchedEffect(user.userId) {
         if (preloadedLeagues != null) return@LaunchedEffect
         scope.launch {
