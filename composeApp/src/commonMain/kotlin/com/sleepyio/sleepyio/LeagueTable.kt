@@ -21,8 +21,8 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.dp
-import com.composeunstyled.theme.Theme
+
+import androidx.compose.material3.MaterialTheme
 import com.sleepyio.sleepyio.client.SleeperClient
 import com.sleepyio.sleepyio.client.model.league.SleeperLeague
 import com.sleepyio.sleepyio.client.model.user.SleeperUser
@@ -31,15 +31,20 @@ import org.jetbrains.compose.ui.tooling.preview.Preview
 
 @Composable
 @Preview
-fun LeagueTable(user: SleeperUser, onLeagueClick: (SleeperLeague) -> Unit = {}) {
+fun LeagueTable(
+    user: SleeperUser,
+    onLeagueClick: (SleeperLeague) -> Unit = {},
+    preloadedLeagues: List<SleeperLeague>? = null
+) {
     val client = remember { SleeperClient }
     val scope = rememberCoroutineScope()
-    var leagues: List<SleeperLeague> by remember { mutableStateOf(listOf()) }
-    var isLoading by remember { mutableStateOf(true) }
+    var leagues: List<SleeperLeague> by remember { mutableStateOf(preloadedLeagues ?: listOf()) }
+    var isLoading by remember { mutableStateOf(preloadedLeagues == null) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
 
     // Load leagues when component is first created
     LaunchedEffect(user.userId) {
+        if (preloadedLeagues != null) return@LaunchedEffect
         scope.launch {
             try {
                 isLoading = true
@@ -56,7 +61,7 @@ fun LeagueTable(user: SleeperUser, onLeagueClick: (SleeperLeague) -> Unit = {}) 
     Surface(modifier = Modifier.fillMaxWidth()) {
         Box(
             modifier = Modifier
-                .background(Theme[colors][surface])
+                .background(MaterialTheme.colorScheme.surface)
                 .safeContentPadding()
                 .fillMaxSize()
         ) {
@@ -74,14 +79,14 @@ fun LeagueTable(user: SleeperUser, onLeagueClick: (SleeperLeague) -> Unit = {}) 
                     androidx.compose.material3.Card(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(16.dp),
+                            .padding(SleeperSpacing.md),
                         colors = androidx.compose.material3.CardDefaults.cardColors(
                             containerColor = androidx.compose.material3.MaterialTheme.colorScheme.errorContainer
                         )
                     ) {
                         Text(
                             text = errorMessage!!,
-                            modifier = Modifier.padding(16.dp),
+                            modifier = Modifier.padding(SleeperSpacing.md),
                             color = androidx.compose.material3.MaterialTheme.colorScheme.onErrorContainer
                         )
                     }
@@ -102,13 +107,13 @@ fun LeagueTable(user: SleeperUser, onLeagueClick: (SleeperLeague) -> Unit = {}) 
                             androidx.compose.material3.Card(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(bottom = 8.dp),
-                                elevation = androidx.compose.material3.CardDefaults.cardElevation(defaultElevation = 4.dp)
+                                    .padding(bottom = SleeperSpacing.sm),
+                                elevation = androidx.compose.material3.CardDefaults.cardElevation(defaultElevation = SleeperSpacing.xs)
                             ) {
                                 Row(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .padding(16.dp)
+                                        .padding(SleeperSpacing.md)
                                 ) {
                                     Text("League Name", fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
                                     Text("League ID", fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
@@ -119,14 +124,14 @@ fun LeagueTable(user: SleeperUser, onLeagueClick: (SleeperLeague) -> Unit = {}) 
                             androidx.compose.material3.Card(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(vertical = 4.dp)
+                                    .padding(vertical = SleeperSpacing.xs)
                                     .clickable { onLeagueClick(league) },
-                                elevation = androidx.compose.material3.CardDefaults.cardElevation(defaultElevation = 2.dp)
+                                elevation = androidx.compose.material3.CardDefaults.cardElevation(defaultElevation = SleeperSpacing.xxs)
                             ) {
                                 Row(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .padding(16.dp)
+                                        .padding(SleeperSpacing.md)
                                 ) {
                                     Text(
                                         text = league.leagueName ?: "Unnamed League",
