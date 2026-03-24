@@ -29,6 +29,7 @@ import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.client.request.get
 import io.ktor.client.request.post
 import io.ktor.client.request.setBody
+import io.ktor.client.statement.bodyAsText
 import io.ktor.http.ContentType
 import io.ktor.http.contentType
 import io.ktor.serialization.kotlinx.json.json
@@ -421,6 +422,29 @@ data object SleeperClient {
         } catch (e: Exception) {
             logger.error(e) { "Error fetching weekly projections" }
             emptyList()
+        }
+    }
+
+    // Raw GraphQL execution
+    /**
+     * Execute a raw GraphQL query and return the JSON response as a string.
+     * Used by GraphQLExplorer for introspection and other exploratory queries.
+     * Returns null on any error.
+     */
+    suspend fun executeGraphQL(query: String, operationName: String? = null): String? {
+        return try {
+            val response = client.post(GRAPHQL_URL) {
+                contentType(ContentType.Application.Json)
+                setBody(GraphQLRequest(
+                    operationName = operationName ?: "query",
+                    variables = buildJsonObject {},
+                    query = query
+                ))
+            }
+            response.bodyAsText()
+        } catch (e: Exception) {
+            logger.error(e) { "Error executing raw GraphQL query" }
+            null
         }
     }
 
