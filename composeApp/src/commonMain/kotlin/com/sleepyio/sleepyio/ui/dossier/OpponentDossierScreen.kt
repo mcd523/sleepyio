@@ -1,13 +1,8 @@
 package com.sleepyio.sleepyio.ui.dossier
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
@@ -28,11 +23,7 @@ import com.sleepyio.sleepyio.client.model.user.SleeperUser
 import com.sleepyio.sleepyio.intel.InsightModule
 import com.sleepyio.sleepyio.intel.InsightRegistry
 import com.sleepyio.sleepyio.intel.OpponentRepository
-import com.sleepyio.sleepyio.intel.model.OpponentLeague
 import com.sleepyio.sleepyio.ui.components.InsightCard
-import kotlinx.coroutines.async
-import kotlinx.coroutines.awaitAll
-import kotlinx.coroutines.coroutineScope
 
 // ---------- Threat colors (shared with OpponentCard) ----------
 
@@ -44,12 +35,6 @@ private fun threatColor(score: Int): Color = when {
     score > 70 -> ThreatRed
     score > 40 -> ThreatOrange
     else -> ThreatTeal
-}
-
-private fun threatLabel(score: Int): String = when {
-    score > 70 -> "HIGH"
-    score > 40 -> "MODERATE"
-    else -> "LOW"
 }
 
 // ---------- Dossier state ----------
