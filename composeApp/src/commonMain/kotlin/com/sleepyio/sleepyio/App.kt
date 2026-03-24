@@ -51,6 +51,7 @@ fun App() {
         var user: SleeperUser? by remember { mutableStateOf(null) }
         var selectedLeague: SleeperLeague? by remember { mutableStateOf(null) }
         var allLeagues by remember { mutableStateOf<List<SleeperLeague>>(emptyList()) }
+        var currentSeason by remember { mutableStateOf("2025") }
 
         Box(
             modifier = Modifier
@@ -64,23 +65,10 @@ fun App() {
                         initialUsername = username,
                         onUserFound = { foundUser ->
                             user = foundUser
-                            // Fetch leagues immediately after login
                             scope.launch {
-                                val nflState = SleeperClient.getNflState()
-                                val season = nflState?.season ?: "2025"
-                                var leagues = SleeperClient.getLeaguesForUser(
-                                    foundUser.userId.toString(), "nfl", season
+                                allLeagues = SleeperClient.getLeaguesForUser(
+                                    foundUser.userId.toString(), "nfl", currentSeason
                                 )
-                                // If no leagues in current season, try previous season
-                                if (leagues.isEmpty()) {
-                                    val prevSeason = nflState?.previousSeason ?: (season.toIntOrNull()?.minus(1))?.toString()
-                                    if (prevSeason != null) {
-                                        leagues = SleeperClient.getLeaguesForUser(
-                                            foundUser.userId.toString(), "nfl", prevSeason
-                                        )
-                                    }
-                                }
-                                allLeagues = leagues
                                 currentScreen = NavigationScreen.HOME_SHELL
                             }
                         },
@@ -96,6 +84,15 @@ fun App() {
                             onLeagueSelected = { league ->
                                 selectedLeague = league
                                 currentScreen = NavigationScreen.LEAGUE_DETAIL
+                            },
+                            currentSeason = currentSeason,
+                            onSeasonChanged = { newSeason ->
+                                currentSeason = newSeason
+                                scope.launch {
+                                    allLeagues = SleeperClient.getLeaguesForUser(
+                                        currentUser.userId.toString(), "nfl", newSeason
+                                    )
+                                }
                             }
                         )
                     }

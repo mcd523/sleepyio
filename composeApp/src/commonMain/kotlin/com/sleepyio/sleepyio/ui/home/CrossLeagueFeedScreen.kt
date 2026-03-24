@@ -33,14 +33,16 @@ fun CrossLeagueFeedScreen(
     leagues: List<SleeperLeague>,
     user: SleeperUser,
     onLeagueClick: (SleeperLeague) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    weekOverride: Int? = null
 ) {
     var feedState by remember { mutableStateOf(FeedState()) }
     var selectedFilter by remember { mutableStateOf(FeedFilter.ALL) }
 
-    // Progressive loading
-    LaunchedEffect(leagues, user) {
-        loadFeed(leagues, user).collect { state ->
+    // Progressive loading — re-triggers when leagues, user, or week override changes
+    LaunchedEffect(leagues, user, weekOverride) {
+        feedState = FeedState() // reset on reload
+        loadFeed(leagues, user, weekOverride).collect { state ->
             feedState = state
         }
     }

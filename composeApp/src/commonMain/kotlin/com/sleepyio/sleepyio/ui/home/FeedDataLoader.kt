@@ -29,7 +29,8 @@ data class FeedState(
  */
 fun loadFeed(
     leagues: List<SleeperLeague>,
-    user: SleeperUser
+    user: SleeperUser,
+    weekOverride: Int? = null
 ): Flow<FeedState> = channelFlow {
     val allEvents = mutableListOf<FeedEvent>()
     val errors = mutableListOf<String>()
@@ -43,11 +44,10 @@ fun loadFeed(
 
     send(FeedState(leaguesTotal = leagues.size))
 
-    // Fetch NFL state once for week context
-    val nflState = try {
-        SleeperClient.getNflState()
-    } catch (_: Exception) { null }
-    val currentWeek = nflState?.week?.toInt() ?: 1
+    // Fetch NFL state once for week context (dev override takes precedence)
+    val currentWeek = weekOverride ?: try {
+        SleeperClient.getNflState()?.week?.toInt() ?: 1
+    } catch (_: Exception) { 1 }
 
     // Process leagues in parallel, emit after each completes
     coroutineScope {
