@@ -21,6 +21,7 @@ import com.sleepyio.sleepyio.cache.SleeperCache
 import com.sleepyio.sleepyio.client.SleeperClient
 import com.sleepyio.sleepyio.client.model.league.SleeperLeague
 import com.sleepyio.sleepyio.client.model.user.SleeperUser
+import com.sleepyio.sleepyio.ui.dossier.OpponentDossierScreen
 import com.sleepyio.sleepyio.ui.shell.LeagueShellScreen
 import com.sleepyio.sleepyio.ui.warroom.WarRoomScreen
 import kotlinx.coroutines.launch
@@ -51,6 +52,7 @@ fun App() {
         var username by remember { mutableStateOf("thehippokid") }
         var user: SleeperUser? by remember { mutableStateOf(null) }
         var selectedLeague: SleeperLeague? by remember { mutableStateOf(null) }
+        var selectedOpponentUserId: String? by remember { mutableStateOf(null) }
         var allLeagues by remember { mutableStateOf<List<SleeperLeague>>(emptyList()) }
         var currentSeason by remember { mutableStateOf("2025") }
 
@@ -95,17 +97,24 @@ fun App() {
                                 selectedLeague = league
                                 currentScreen = NavigationScreen.LEAGUE_DETAIL
                             },
-                            onOpponentSelected = { _ ->
-                                // Will be wired to OPPONENT_DOSSIER in Phase 5
-                                currentScreen = NavigationScreen.WAR_ROOM
+                            onOpponentSelected = { opponentId ->
+                                selectedOpponentUserId = opponentId
+                                currentScreen = NavigationScreen.OPPONENT_DOSSIER
                             }
                         )
                     }
                 }
 
                 NavigationScreen.OPPONENT_DOSSIER -> {
-                    // Placeholder — will be implemented in Phase 5
-                    user?.let {
+                    val opponentId = selectedOpponentUserId
+                    if (opponentId != null && user != null) {
+                        OpponentDossierScreen(
+                            opponentUserId = opponentId,
+                            myUserId = user!!.userId ?: "",
+                            leagues = allLeagues,
+                            onBack = { currentScreen = NavigationScreen.WAR_ROOM }
+                        )
+                    } else {
                         currentScreen = NavigationScreen.WAR_ROOM
                     }
                 }
