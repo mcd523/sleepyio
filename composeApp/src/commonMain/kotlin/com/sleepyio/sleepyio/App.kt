@@ -68,9 +68,19 @@ fun App() {
                             scope.launch {
                                 val nflState = SleeperClient.getNflState()
                                 val season = nflState?.season ?: "2025"
-                                allLeagues = SleeperClient.getLeaguesForUser(
+                                var leagues = SleeperClient.getLeaguesForUser(
                                     foundUser.userId.toString(), "nfl", season
                                 )
+                                // If no leagues in current season, try previous season
+                                if (leagues.isEmpty()) {
+                                    val prevSeason = nflState?.previousSeason ?: (season.toIntOrNull()?.minus(1))?.toString()
+                                    if (prevSeason != null) {
+                                        leagues = SleeperClient.getLeaguesForUser(
+                                            foundUser.userId.toString(), "nfl", prevSeason
+                                        )
+                                    }
+                                }
+                                allLeagues = leagues
                                 currentScreen = NavigationScreen.HOME_SHELL
                             }
                         },

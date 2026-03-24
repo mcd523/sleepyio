@@ -36,6 +36,11 @@ fun loadFeed(
     var loaded = 0
     val mutex = Mutex()
 
+    if (leagues.isEmpty()) {
+        send(FeedState(leaguesTotal = 0, isComplete = true))
+        return@channelFlow
+    }
+
     send(FeedState(leaguesTotal = leagues.size))
 
     // Fetch NFL state once for week context
