@@ -21,8 +21,8 @@ import com.sleepyio.sleepyio.cache.SleeperCache
 import com.sleepyio.sleepyio.client.SleeperClient
 import com.sleepyio.sleepyio.client.model.league.SleeperLeague
 import com.sleepyio.sleepyio.client.model.user.SleeperUser
-import com.sleepyio.sleepyio.ui.home.HomeShellScreen
 import com.sleepyio.sleepyio.ui.shell.LeagueShellScreen
+import com.sleepyio.sleepyio.ui.warroom.WarRoomScreen
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.ui.tooling.preview.Preview
@@ -32,8 +32,9 @@ import sleepyio.composeapp.generated.resources.sleeper_logo
 // Navigation states
 enum class NavigationScreen {
     USER_LOGIN,
-    HOME_SHELL,
-    LEAGUE_DETAIL
+    WAR_ROOM,
+    LEAGUE_DETAIL,
+    OPPONENT_DOSSIER
 }
 
 @Composable
@@ -69,22 +70,18 @@ fun App() {
                                 allLeagues = SleeperClient.getLeaguesForUser(
                                     foundUser.userId.toString(), "nfl", currentSeason
                                 )
-                                currentScreen = NavigationScreen.HOME_SHELL
+                                currentScreen = NavigationScreen.WAR_ROOM
                             }
                         },
                         onUsernameChanged = { username = it }
                     )
                 }
 
-                NavigationScreen.HOME_SHELL -> {
+                NavigationScreen.WAR_ROOM -> {
                     user?.let { currentUser ->
-                        HomeShellScreen(
+                        WarRoomScreen(
                             user = currentUser,
                             leagues = allLeagues,
-                            onLeagueSelected = { league ->
-                                selectedLeague = league
-                                currentScreen = NavigationScreen.LEAGUE_DETAIL
-                            },
                             currentSeason = currentSeason,
                             onSeasonChanged = { newSeason ->
                                 currentSeason = newSeason
@@ -93,8 +90,23 @@ fun App() {
                                         currentUser.userId.toString(), "nfl", newSeason
                                     )
                                 }
+                            },
+                            onLeagueSelected = { league ->
+                                selectedLeague = league
+                                currentScreen = NavigationScreen.LEAGUE_DETAIL
+                            },
+                            onOpponentSelected = { _ ->
+                                // Will be wired to OPPONENT_DOSSIER in Phase 5
+                                currentScreen = NavigationScreen.WAR_ROOM
                             }
                         )
+                    }
+                }
+
+                NavigationScreen.OPPONENT_DOSSIER -> {
+                    // Placeholder — will be implemented in Phase 5
+                    user?.let {
+                        currentScreen = NavigationScreen.WAR_ROOM
                     }
                 }
 
@@ -104,7 +116,7 @@ fun App() {
                             LeagueShellScreen(
                                 league = league,
                                 user = currentUser,
-                                onBack = { currentScreen = NavigationScreen.HOME_SHELL }
+                                onBack = { currentScreen = NavigationScreen.WAR_ROOM }
                             )
                         }
                     }
