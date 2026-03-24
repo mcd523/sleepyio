@@ -58,7 +58,7 @@ fun LeagueBfsView(
     var isRunning by remember { mutableStateOf(false) }
     var maxDepth by remember { mutableStateOf(3) }
 
-    MyTheme {
+    SleeperTheme {
         Surface(modifier = Modifier.fillMaxSize()) {
             Box(
                 modifier = Modifier
@@ -87,12 +87,12 @@ fun LeagueBfsView(
                         onBack = onBack
                     )
 
-                    Spacer(modifier = Modifier.height(16.dp))
+                    Spacer(modifier = Modifier.height(SleeperSpacing.md))
 
                     // BFS Status
                     BfsStatusCard(bfsState = bfsState)
 
-                    Spacer(modifier = Modifier.height(16.dp))
+                    Spacer(modifier = Modifier.height(SleeperSpacing.md))
 
                     // Results visualization
                     BfsResultsView(bfsState = bfsState)
@@ -139,10 +139,10 @@ fun BfsHeader(
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
-        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = SleeperSpacing.xs)
     ) {
         Column(
-            modifier = Modifier.padding(16.dp)
+            modifier = Modifier.padding(SleeperSpacing.md)
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -160,7 +160,7 @@ fun BfsHeader(
                 )
             }
 
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(SleeperSpacing.sm))
 
             Text(
                 text = "Starting from: ${initialUser.displayName ?: initialUser.userName ?: "Unknown User"}",
@@ -168,7 +168,7 @@ fun BfsHeader(
                 fontWeight = FontWeight.Medium
             )
 
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(SleeperSpacing.sm))
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -198,7 +198,7 @@ fun BfsHeader(
                         Text(if (isRunning) "Running..." else "Start BFS")
                     }
 
-                    Spacer(modifier = Modifier.width(8.dp))
+                    Spacer(modifier = Modifier.width(SleeperSpacing.sm))
 
                     Button(
                         onClick = onReset,
@@ -229,7 +229,7 @@ fun BfsStatusCard(bfsState: BfsState) {
         )
     ) {
         Column(
-            modifier = Modifier.padding(16.dp)
+            modifier = Modifier.padding(SleeperSpacing.md)
         ) {
             Text(
                 text = "BFS Status",
@@ -237,7 +237,7 @@ fun BfsStatusCard(bfsState: BfsState) {
                 fontWeight = FontWeight.Bold
             )
 
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(SleeperSpacing.sm))
 
             when {
                 bfsState.error != null -> {
@@ -264,7 +264,7 @@ fun BfsStatusCard(bfsState: BfsState) {
                     LinearProgressIndicator(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(top = 8.dp)
+                            .padding(top = SleeperSpacing.sm)
                     )
                 }
                 else -> {
@@ -275,7 +275,7 @@ fun BfsStatusCard(bfsState: BfsState) {
                 }
             }
 
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(SleeperSpacing.sm))
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -303,7 +303,7 @@ fun BfsResultsView(bfsState: BfsState) {
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(32.dp),
+                    .padding(SleeperSpacing.xxl),
                 contentAlignment = Alignment.Center
             ) {
                 Text(
@@ -320,7 +320,7 @@ fun BfsResultsView(bfsState: BfsState) {
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
+        verticalArrangement = Arrangement.spacedBy(SleeperSpacing.sm)
     ) {
         // Group by depth for better visualization
         groupedByDepth.keys.sorted().forEach { depth ->
@@ -337,7 +337,7 @@ fun BfsResultsView(bfsState: BfsState) {
             }
 
             item {
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(SleeperSpacing.sm))
             }
         }
     }
@@ -354,7 +354,7 @@ fun DepthHeaderCard(depth: Int, leagueCount: Int) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(12.dp),
+                .padding(SleeperSpacing.sm),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -377,10 +377,10 @@ fun DepthHeaderCard(depth: Int, leagueCount: Int) {
 fun LeagueNodeCard(node: BfsNode) {
     Card(
         modifier = Modifier.fillMaxWidth(),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = SleeperSpacing.xxs)
     ) {
         Column(
-            modifier = Modifier.padding(16.dp)
+            modifier = Modifier.padding(SleeperSpacing.md)
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -409,11 +409,11 @@ fun LeagueNodeCard(node: BfsNode) {
 
                 Surface(
                     color = getDepthColor(node.depth),
-                    shape = RoundedCornerShape(12.dp)
+                    shape = RoundedCornerShape(SleeperSpacing.sm)
                 ) {
                     Text(
                         text = "D${node.depth}",
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                        modifier = Modifier.padding(horizontal = SleeperSpacing.sm, vertical = SleeperSpacing.xs),
                         style = MaterialTheme.typography.bodySmall,
                         fontWeight = FontWeight.Bold,
                         color = Color.White
@@ -422,7 +422,7 @@ fun LeagueNodeCard(node: BfsNode) {
             }
 
             node.discoveredBy?.let { discoverer ->
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(SleeperSpacing.sm))
                 Text(
                     text = "💡 Discovered through: $discoverer",
                     style = MaterialTheme.typography.bodySmall,
@@ -431,7 +431,7 @@ fun LeagueNodeCard(node: BfsNode) {
                 )
             }
 
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(SleeperSpacing.sm))
 
             Text(
                 text = "👥 ${node.users.size} users in this league",
@@ -442,16 +442,7 @@ fun LeagueNodeCard(node: BfsNode) {
     }
 }
 
-private fun getDepthColor(depth: Int): Color {
-    return when (depth % 5) {
-        0 -> Color(0xFF2196F3) // Blue
-        1 -> Color(0xFF4CAF50) // Green
-        2 -> Color(0xFFFF9800) // Orange
-        3 -> Color(0xFF9C27B0) // Purple
-        4 -> Color(0xFFF44336) // Red
-        else -> Color(0xFF607D8B) // Blue Grey
-    }
-}
+private fun getDepthColor(depth: Int): Color = BfsDepthColors.getDepthColor(depth)
 
 @OptIn(ExperimentalCoroutinesApi::class)
 private suspend fun performBfs(

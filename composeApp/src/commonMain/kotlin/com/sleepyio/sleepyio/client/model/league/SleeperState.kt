@@ -10,7 +10,7 @@ data class SleeperState(
     @SerialName("season_type")
     val seasonType: String,
     @SerialName("season_start_date")
-    val seasonStartDate: String,
+    val seasonStartDate: String?,
     @SerialName("season")
     val season: String,
     @SerialName("previous_season")

@@ -8,7 +8,7 @@ data class SleeperUser(
     @SerialName("username")
     val userName: String? = null,
     @SerialName("user_id")
-    val userId: Long? = null,
+    val userId: String? = null,
     @SerialName("display_name")
     val displayName: String? = null,
     @SerialName("avatar")

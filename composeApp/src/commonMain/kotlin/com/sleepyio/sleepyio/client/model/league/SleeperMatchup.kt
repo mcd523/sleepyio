@@ -12,9 +12,13 @@ data class SleeperMatchup(
     @SerialName("players")
     val players: List<String>,
     @SerialName("matchup_id")
-    val matchupId: Long,
+    val matchupId: Long? = null,
     @SerialName("points")
     val points: Float,
     @SerialName("custom_points")
-    val customPoints: Float?
+    val customPoints: Float? = null,
+    @SerialName("starters_points")
+    val startersPoints: List<Float>? = null,
+    @SerialName("players_points")
+    val playersPoints: Map<String, Float>? = null
 )

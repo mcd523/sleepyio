@@ -1,5 +1,6 @@
 package com.sleepyio.sleepyio.ui.league
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -8,16 +9,22 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalViewConfiguration
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalWindowInfo
+import coil3.compose.AsyncImage
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.sleepyio.sleepyio.SleeperSpacing
 import com.sleepyio.sleepyio.cache.SleeperCache
 import com.sleepyio.sleepyio.client.SleeperClient
 import com.sleepyio.sleepyio.client.model.league.SleeperMatchup
+import com.sleepyio.sleepyio.client.model.stats.WeeklyProjections
 import kotlinx.coroutines.launch
+import kotlinx.serialization.json.doubleOrNull
+import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.serialization.json.jsonObject
 
 data class MatchupDisplay(
     val matchupId: Long,
@@ -34,18 +41,20 @@ data class TeamInfo(
     val points: Float,
     val projectedPoints: Float?,
     val avatar: String?,
-    val starters: List<PlayerInfo> = emptyList(),
+    val starters: List<PlayerInfoDisplay> = emptyList(),
     val playersYetToPlay: Int = 0
 )
 
-data class PlayerInfo(
+data class PlayerInfoDisplay(
     val playerId: String,
     val name: String,
     val position: String,
     val points: Float,
     val projectedPoints: Float?,
     val isStarted: Boolean,
-    val status: String? = null
+    val status: String? = null,
+    val headshotUrl: String? = null,
+    val newsHeadline: String? = null
 )
 
 data class ResponsiveSizes(
@@ -68,7 +77,6 @@ data class ResponsiveSizes(
 private fun getResponsiveSizes(): ResponsiveSizes {
     val configuration = LocalWindowInfo.current
     val screenWidth = configuration.containerSize.width
-    val screenHeight = configuration.containerSize.height
 
     return when {
         screenWidth >= 1200 -> ResponsiveSizes( // Large screens (desktop/tablet landscape)
@@ -123,6 +131,7 @@ private fun getResponsiveSizes(): ResponsiveSizes {
 @Composable
 fun LeagueStateScreen(
     leagueId: Long,
+    onPlayerClick: (String) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     var matchups by remember { mutableStateOf<List<MatchupDisplay>>(emptyList()) }
@@ -146,14 +155,19 @@ fun LeagueStateScreen(
                 val rosters = SleeperClient.getRostersInLeague(leagueId)
                 val users = SleeperClient.getUsersInLeague(leagueId)
 
+                // Fetch weekly projections for player stats
+                val weeklyProjections = SleeperClient.getAllWeeklyProjections()
+                val projectionsMap: Map<String, WeeklyProjections> = weeklyProjections.associateBy { it.playerId }
+
                 // Create lookup maps for efficiency
                 val rosterMap = rosters.associateBy { it.rosterId.toLong() }
                 val userMap = users.associateBy { it.userId }
 
-                // Group matchups by matchup_id and create display objects
-                val groupedMatchups = rawMatchups.groupBy { it.matchupId }
+                // Group matchups by matchup_id and create display objects (filter out bye weeks with null matchupId)
+                val groupedMatchups = rawMatchups.filter { it.matchupId != null }.groupBy { it.matchupId }
 
-                matchups = groupedMatchups.map { (matchupId, teams) ->
+                matchups = groupedMatchups.map { (matchupIdNullable, teams) ->
+                    val matchupId = matchupIdNullable!!
                     val team1 = teams.firstOrNull()
                     val team2 = teams.getOrNull(1)
 
@@ -163,27 +177,63 @@ fun LeagueStateScreen(
                         val ownerName = user?.displayName ?: user?.userName ?: "Unknown Team"
                         val teamName = generateTeamName(ownerName)
 
-                        // Create player info for starters
-                        val starterInfo = matchup.starters.mapNotNull { playerId ->
+                        // Create player info for starters with actual points from matchup
+                        val starterInfo = matchup.starters.mapIndexedNotNull { index, playerId ->
                             SleeperCache.getPlayer(playerId)?.let { player ->
-                                PlayerInfo(
+                                // Get points from starters_points array or players_points map
+                                val playerPoints = matchup.startersPoints?.getOrNull(index)
+                                    ?: matchup.playersPoints?.get(playerId)
+                                    ?: 0f
+
+                                // Get projected points from weekly projections
+                                val projection = projectionsMap[playerId]
+                                val projectedPts = projection?.stats?.get("pts_ppr")?.jsonPrimitive?.doubleOrNull?.toFloat()
+
+                                // Determine if player has played (has points or no projection remaining)
+                                val hasPlayed = playerPoints > 0f || projectedPts == null || projectedPts <= 0f
+
+                                // Get player news (fetch latest headline)
+                                val news = try {
+                                    SleeperClient.getPlayerNews(playerId, limit = 1)
+                                } catch (e: Exception) {
+                                    emptyList()
+                                }
+                                val latestNews = news.firstOrNull()?.metadata?.let { metadata ->
+                                    try {
+                                        metadata.jsonObject["title"]?.jsonPrimitive?.content
+                                    } catch (e: Exception) {
+                                        null
+                                    }
+                                }
+
+                                // Generate headshot URL
+                                val headshotUrl = SleeperClient.getPlayerHeadshotUrl(playerId)
+
+                                PlayerInfoDisplay(
                                     playerId = playerId,
                                     name = "${player.firstName ?: ""} ${player.lastName ?: ""}".trim(),
                                     position = player.position ?: "N/A",
-                                    points = 0f, // Would need weekly stats API
-                                    projectedPoints = null, // Would need projections API
-                                    isStarted = false, // Would need game status
-                                    status = player.injuryStatus
+                                    points = playerPoints,
+                                    projectedPoints = projectedPts,
+                                    isStarted = hasPlayed,
+                                    status = player.injuryStatus,
+                                    headshotUrl = headshotUrl,
+                                    newsHeadline = latestNews
                                 )
                             }
                         }
+
+                        // Calculate total projected points for team
+                        val totalProjected = starterInfo.sumOf {
+                            (it.projectedPoints ?: it.points).toDouble()
+                        }.toFloat()
 
                         return TeamInfo(
                             rosterId = matchup.rosterId,
                             ownerName = ownerName,
                             teamName = teamName,
                             points = matchup.points,
-                            projectedPoints = null, // Would calculate from player projections
+                            projectedPoints = totalProjected,
                             avatar = user?.avatar,
                             starters = starterInfo,
                             playersYetToPlay = starterInfo.count { !it.isStarted }
@@ -272,7 +322,7 @@ fun LeagueStateScreen(
                 ) {
                     Text(
                         text = errorMessage!!,
-                        modifier = Modifier.padding(16.dp),
+                        modifier = Modifier.padding(SleeperSpacing.md),
                         color = MaterialTheme.colorScheme.onErrorContainer
                     )
                 }
@@ -284,7 +334,7 @@ fun LeagueStateScreen(
                 ) {
                     Text(
                         text = "No matchups found for this week",
-                        modifier = Modifier.padding(16.dp),
+                        modifier = Modifier.padding(SleeperSpacing.md),
                         textAlign = TextAlign.Center
                     )
                 }
@@ -295,7 +345,11 @@ fun LeagueStateScreen(
                     verticalArrangement = Arrangement.spacedBy(sizes.spacingMedium)
                 ) {
                     items(matchups) { matchup ->
-                        MatchupCard(matchup = matchup, sizes = sizes)
+                        MatchupCard(
+                            matchup = matchup,
+                            sizes = sizes,
+                            onPlayerClick = onPlayerClick
+                        )
                     }
                 }
             }
@@ -307,6 +361,7 @@ fun LeagueStateScreen(
 fun MatchupCard(
     matchup: MatchupDisplay,
     sizes: ResponsiveSizes,
+    onPlayerClick: (String) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     var isExpanded by remember { mutableStateOf(false) }
@@ -333,7 +388,7 @@ fun MatchupCard(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "Matchup ${matchup.matchupId}",
+                    text = "Matchup ${matchup.matchupId ?: ""}",
                     fontSize = sizes.matchupHeaderFontSize,
                     fontWeight = FontWeight.Medium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -414,7 +469,11 @@ fun MatchupCard(
                                 color = MaterialTheme.colorScheme.primary
                             )
                             matchup.team1.starters.forEach { player ->
-                                PlayerRow(player = player, sizes = sizes)
+                                PlayerRow(
+                                    player = player,
+                                    sizes = sizes,
+                                    onPlayerClick = onPlayerClick
+                                )
                             }
                         }
 
@@ -429,7 +488,11 @@ fun MatchupCard(
                                 color = MaterialTheme.colorScheme.primary
                             )
                             matchup.team2.starters.forEach { player ->
-                                PlayerRow(player = player, sizes = sizes)
+                                PlayerRow(
+                                    player = player,
+                                    sizes = sizes,
+                                    onPlayerClick = onPlayerClick
+                                )
                             }
                         }
                     }
@@ -502,21 +565,61 @@ fun TeamDisplay(
 
             if (!isBye) {
                 Spacer(modifier = Modifier.height(sizes.spacingSmall / 2))
-                Text(
-                    text = "${(team.points * 10).toInt() / 10.0} pts",
-                    fontSize = sizes.pointsFontSize,
-                    fontWeight = FontWeight.Bold,
-                    color = textColor
-                )
+
+                // Current points with larger emphasis
+                Row(verticalAlignment = Alignment.Bottom) {
+                    Text(
+                        text = "${(team.points * 10).toInt() / 10.0}",
+                        fontSize = sizes.pointsFontSize * 1.3f,
+                        fontWeight = FontWeight.Bold,
+                        color = textColor
+                    )
+                    Text(
+                        text = " pts",
+                        fontSize = sizes.pointsFontSize * 0.7f,
+                        color = textColor.copy(alpha = 0.7f),
+                        modifier = Modifier.padding(bottom = 2.dp)
+                    )
+                }
+
+                // Show projected points if available
+                if (team.projectedPoints != null) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.Center
+                    ) {
+                        Text(
+                            text = "📊",
+                            fontSize = sizes.positionFontSize
+                        )
+                        Spacer(modifier = Modifier.width(sizes.spacingSmall / 3))
+                        Text(
+                            text = "Projected: ${(team.projectedPoints * 10).toInt() / 10.0}",
+                            fontSize = sizes.positionFontSize * 1.1f,
+                            color = MaterialTheme.colorScheme.secondary,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
 
                 // Show players yet to play if available
                 if (team.playersYetToPlay > 0) {
-                    Text(
-                        text = "${team.playersYetToPlay} to play",
-                        fontSize = sizes.positionFontSize,
-                        color = MaterialTheme.colorScheme.primary,
-                        fontWeight = FontWeight.Medium
-                    )
+                    Surface(
+                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.2f),
+                        shape = RoundedCornerShape(sizes.cornerRadius * 0.5f),
+                        modifier = Modifier.padding(top = sizes.spacingSmall / 3)
+                    ) {
+                        Text(
+                            text = "⏳ ${team.playersYetToPlay} to play",
+                            fontSize = sizes.positionFontSize,
+                            color = MaterialTheme.colorScheme.primary,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.padding(
+                                horizontal = sizes.spacingSmall / 2,
+                                vertical = sizes.spacingSmall / 4
+                            )
+                        )
+                    }
                 }
             }
         }
@@ -525,46 +628,158 @@ fun TeamDisplay(
 
 @Composable
 fun PlayerRow(
-    player: PlayerInfo,
+    player: PlayerInfoDisplay,
     sizes: ResponsiveSizes,
+    onPlayerClick: (String) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
-    Row(
+    Card(
         modifier = modifier
             .fillMaxWidth()
-            .padding(vertical = sizes.spacingSmall / 2),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
+            .padding(vertical = sizes.spacingSmall / 3)
+            .clickable { onPlayerClick(player.playerId) },
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+        ),
+        shape = RoundedCornerShape(sizes.cornerRadius * 0.5f)
     ) {
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = player.name,
-                fontSize = sizes.playerNameFontSize,
-                fontWeight = FontWeight.Medium,
-                color = MaterialTheme.colorScheme.onSurface
-            )
-            Row {
-                Text(
-                    text = player.position,
-                    fontSize = sizes.positionFontSize,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                if (player.status != null && player.status != "Active") {
-                    Text(
-                        text = " • ${player.status}",
-                        fontSize = sizes.positionFontSize,
-                        color = MaterialTheme.colorScheme.error
-                    )
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(sizes.spacingSmall)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // Left side: Player info
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.weight(1f)
+                ) {
+                    // Player headshot with fallback
+                    Box(
+                        modifier = Modifier.size(sizes.cardPadding * 2.5f)
+                    ) {
+                        Surface(
+                            modifier = Modifier.fillMaxSize(),
+                            shape = RoundedCornerShape(sizes.cornerRadius * 0.3f),
+                            color = MaterialTheme.colorScheme.primaryContainer
+                        ) {
+                            // Fallback background
+                            Box(
+                                contentAlignment = Alignment.Center,
+                                modifier = Modifier.fillMaxSize()
+                            ) {
+                                Text(
+                                    text = player.position.take(2),
+                                    fontSize = sizes.positionFontSize,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                                )
+                            }
+                        }
+
+                        // Try to load player headshot if URL is available
+                        if (player.headshotUrl != null) {
+                            Surface(
+                                modifier = Modifier.fillMaxSize(),
+                                shape = RoundedCornerShape(sizes.cornerRadius * 0.3f),
+                                color = MaterialTheme.colorScheme.surface.copy(alpha = 0.8f)
+                            ) {
+                                AsyncImage(
+                                    model = player.headshotUrl,
+                                    contentDescription = "${player.name} headshot",
+                                    modifier = Modifier.fillMaxSize(),
+                                    contentScale = ContentScale.Crop
+                                )
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.width(sizes.spacingSmall))
+
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = player.name,
+                            fontSize = sizes.playerNameFontSize,
+                            fontWeight = FontWeight.Medium,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                text = player.position,
+                                fontSize = sizes.positionFontSize,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                fontWeight = FontWeight.Medium
+                            )
+                            if (player.status != null && player.status != "Active") {
+                                Text(
+                                    text = " • ${player.status}",
+                                    fontSize = sizes.positionFontSize,
+                                    color = MaterialTheme.colorScheme.error,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
+                    }
+                }
+
+                // Right side: Points
+                Column(horizontalAlignment = Alignment.End) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            text = "${(player.points * 10).toInt() / 10.0}",
+                            fontSize = sizes.playerNameFontSize * 1.2f,
+                            fontWeight = FontWeight.Bold,
+                            color = if (player.isStarted) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.primary
+                        )
+                        Text(
+                            text = " pts",
+                            fontSize = sizes.positionFontSize,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    if (player.projectedPoints != null) {
+                        Text(
+                            text = "proj: ${(player.projectedPoints * 10).toInt() / 10.0}",
+                            fontSize = sizes.positionFontSize,
+                            color = if (!player.isStarted) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.onSurfaceVariant,
+                            fontWeight = if (!player.isStarted) FontWeight.Medium else FontWeight.Normal
+                        )
+                    }
+                }
+            }
+
+            // Player news (if available)
+            if (player.newsHeadline != null) {
+                Spacer(modifier = Modifier.height(sizes.spacingSmall / 2))
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    color = MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.5f),
+                    shape = RoundedCornerShape(sizes.cornerRadius * 0.3f)
+                ) {
+                    Row(
+                        modifier = Modifier.padding(sizes.spacingSmall / 2),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "📰",
+                            fontSize = sizes.positionFontSize
+                        )
+                        Spacer(modifier = Modifier.width(sizes.spacingSmall / 2))
+                        Text(
+                            text = player.newsHeadline,
+                            fontSize = sizes.positionFontSize * 0.9f,
+                            color = MaterialTheme.colorScheme.onTertiaryContainer,
+                            fontWeight = FontWeight.Normal,
+                            maxLines = 2
+                        )
+                    }
                 }
             }
         }
-
-        Text(
-            text = "${player.points} pts",
-            fontSize = sizes.playerNameFontSize,
-            fontWeight = FontWeight.Bold,
-            color = if (player.isStarted) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.primary
-        )
     }
 }
 
@@ -586,14 +801,24 @@ private fun analyzeMatchupInterest(team1: TeamInfo, team2: TeamInfo?): Pair<Bool
     val pointDiff = kotlin.math.abs(team1.points - team2.points)
     val playersYetToPlay = team1.playersYetToPlay + team2.playersYetToPlay
 
+    // Calculate projected final scores
+    val team1Projected = team1.projectedPoints ?: team1.points
+    val team2Projected = team2.projectedPoints ?: team2.points
+    val projectedDiff = kotlin.math.abs(team1Projected - team2Projected)
+
+    // Determine if the projected winner differs from current leader
+    val team1Leading = team1.points > team2.points
+    val team1ProjectedWin = team1Projected > team2Projected
+    val comebackPossible = team1Leading != team1ProjectedWin && playersYetToPlay > 0
+
     return when {
-        pointDiff <= 15 && playersYetToPlay > 2 -> true to "Close game with players yet to play"
-        pointDiff <= 5 -> true to "Very close matchup!"
+        comebackPossible -> true to "Projected comeback!"
+        projectedDiff <= 10 && playersYetToPlay > 0 -> true to "Projected close finish"
+        pointDiff <= 5 && playersYetToPlay == 0 -> true to "Photo finish!"
+        pointDiff <= 15 && playersYetToPlay > 2 -> true to "Close with players left"
         playersYetToPlay >= 4 -> true to "Many players yet to play"
-        team1.points > 150 || team2.points > 150 -> true to "High-scoring matchup"
+        team1.points > 150 || team2.points > 150 -> true to "High-scoring"
         else -> false to null
     }
 }
-
-
 

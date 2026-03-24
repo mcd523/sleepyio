@@ -29,8 +29,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.dp
-import com.composeunstyled.theme.Theme
+
 import com.sleepyio.sleepyio.cache.SleeperCache
 import com.sleepyio.sleepyio.client.SleeperClient
 import com.sleepyio.sleepyio.client.model.league.SleeperLeague
@@ -53,7 +52,7 @@ fun TeamsView(league: SleeperLeague, onBack: () -> Unit = {}) {
     var usersWithRosters: List<UserWithRoster> by remember { mutableStateOf(listOf()) }
     var isLoading by remember { mutableStateOf(true) }
 
-    MyTheme {
+    SleeperTheme {
         Surface(modifier = Modifier.fillMaxWidth()) {
             Box(
                 modifier = Modifier
@@ -65,7 +64,7 @@ fun TeamsView(league: SleeperLeague, onBack: () -> Unit = {}) {
                     Row {
                         Button(
                             onClick = onBack,
-                            modifier = Modifier.padding(bottom = 16.dp)
+                            modifier = Modifier.padding(bottom = SleeperSpacing.md)
                         ) {
                             Text("← Back to Leagues")
                         }
@@ -76,7 +75,7 @@ fun TeamsView(league: SleeperLeague, onBack: () -> Unit = {}) {
                                 fontWeight = FontWeight.Medium,
                                 modifier = Modifier
                                     .align(Alignment.CenterVertically)
-                                    .padding(start = 16.dp)
+                                    .padding(start = SleeperSpacing.md)
                             )
                         } else {
                             Text(
@@ -85,7 +84,7 @@ fun TeamsView(league: SleeperLeague, onBack: () -> Unit = {}) {
                                 fontWeight = FontWeight.Bold,
                                 modifier = Modifier
                                     .align(Alignment.CenterVertically)
-                                    .padding(start = 16.dp)
+                                    .padding(start = SleeperSpacing.md)
                             )
                         }
                     }
@@ -93,7 +92,7 @@ fun TeamsView(league: SleeperLeague, onBack: () -> Unit = {}) {
                     if (!isLoading) {
                         LazyColumn(
                             modifier = Modifier.fillMaxWidth(),
-                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                            verticalArrangement = Arrangement.spacedBy(SleeperSpacing.sm)
                         ) {
                             items(usersWithRosters) { userWithRoster ->
                                 TeamCard(userWithRoster = userWithRoster)
@@ -145,14 +144,14 @@ fun TeamCard(userWithRoster: UserWithRoster) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .background(Theme[colors][surface])
+            .background(MaterialTheme.colorScheme.surface)
             .clickable { expanded = !expanded }
-            .padding(horizontal = 16.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
-        shape = RoundedCornerShape(8.dp)
+            .padding(horizontal = SleeperSpacing.md),
+        elevation = CardDefaults.cardElevation(defaultElevation = SleeperSpacing.xs),
+        shape = RoundedCornerShape(SleeperSpacing.sm)
     ) {
         Column(
-            modifier = Modifier.padding(16.dp)
+            modifier = Modifier.padding(SleeperSpacing.md)
         ) {
             // Team header
             Row(
@@ -184,11 +183,11 @@ fun TeamCard(userWithRoster: UserWithRoster) {
 
             // Expandable roster details
             if (expanded && userWithRoster.roster != null) {
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(SleeperSpacing.md))
 
                 RosterDetails(roster = userWithRoster.roster)
             } else if (expanded && userWithRoster.roster == null) {
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(SleeperSpacing.sm))
                 Text(
                     text = "No roster found for this user",
                     style = MaterialTheme.typography.bodyMedium,
@@ -198,7 +197,7 @@ fun TeamCard(userWithRoster: UserWithRoster) {
 
             // Expand/collapse indicator
             if (userWithRoster.roster != null) {
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(SleeperSpacing.sm))
                 Text(
                     text = if (expanded) "Tap to collapse" else "Tap to view roster",
                     style = MaterialTheme.typography.bodySmall,
@@ -229,13 +228,13 @@ fun RosterDetails(roster: SleeperRoster) {
             fontWeight = FontWeight.Bold,
             color = MaterialTheme.colorScheme.primary
         )
-        Spacer(modifier = Modifier.height(4.dp))
+        Spacer(modifier = Modifier.height(SleeperSpacing.xs))
 
         if (roster.fullStarters.isNotEmpty()) {
             roster.fullStarters.sortedWith(comparePlayers).forEach { player ->
                 PlayerMetadataView(
                     player = player,
-                    modifier = Modifier.padding(start = 8.dp, bottom = 4.dp)
+                    modifier = Modifier.padding(start = SleeperSpacing.sm, bottom = SleeperSpacing.xs)
                 )
             }
         } else {
@@ -243,11 +242,11 @@ fun RosterDetails(roster: SleeperRoster) {
                 text = "No starters set",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(start = 8.dp)
+                modifier = Modifier.padding(start = SleeperSpacing.sm)
             )
         }
 
-        Spacer(modifier = Modifier.height(12.dp))
+        Spacer(modifier = Modifier.height(SleeperSpacing.sm))
 
         // Bench players section
         val benchPlayers = roster.fullPlayers.filter { !roster.starters.contains(it.playerId) }
@@ -257,13 +256,13 @@ fun RosterDetails(roster: SleeperRoster) {
             fontWeight = FontWeight.Bold,
             color = MaterialTheme.colorScheme.secondary
         )
-        Spacer(modifier = Modifier.height(4.dp))
+        Spacer(modifier = Modifier.height(SleeperSpacing.xs))
 
         if (benchPlayers.isNotEmpty()) {
             benchPlayers.forEach { player ->
                 PlayerMetadataView(
                     player = player,
-                    modifier = Modifier.padding(start = 8.dp, bottom = 4.dp)
+                    modifier = Modifier.padding(start = SleeperSpacing.sm, bottom = SleeperSpacing.xs)
                 )
             }
         } else {
@@ -271,11 +270,11 @@ fun RosterDetails(roster: SleeperRoster) {
                 text = "No bench players",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(start = 8.dp)
+                modifier = Modifier.padding(start = SleeperSpacing.sm)
             )
         }
 
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(SleeperSpacing.sm))
 
         // Total roster size
         Text(
@@ -292,14 +291,14 @@ fun PlayerMetadataView(player: SleeperPlayer, modifier: Modifier = Modifier) {
     Card(
         modifier = modifier
             .fillMaxWidth()
-            .padding(vertical = 2.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+            .padding(vertical = SleeperSpacing.xxs),
+        elevation = CardDefaults.cardElevation(defaultElevation = SleeperSpacing.xxs),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
         )
     ) {
         Column(
-            modifier = Modifier.padding(12.dp)
+            modifier = Modifier.padding(SleeperSpacing.sm)
         ) {
             // Player name and position
             Row(
@@ -363,7 +362,7 @@ fun PlayerMetadataView(player: SleeperPlayer, modifier: Modifier = Modifier) {
             }
 
             // Additional metadata row
-            Spacer(modifier = Modifier.height(4.dp))
+            Spacer(modifier = Modifier.height(SleeperSpacing.xs))
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween

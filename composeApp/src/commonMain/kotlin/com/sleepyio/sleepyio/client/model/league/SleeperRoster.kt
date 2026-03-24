@@ -13,9 +13,9 @@ data class SleeperRoster(
     @SerialName("players")
     val players: List<String> = listOf(),
     @SerialName("owner_id")
-    val ownerId: Long?,
+    val ownerId: String?,
     @SerialName("league_id")
-    val leagueId: Long,
+    val leagueId: String,
 
     val fullStarters: List<SleeperPlayer> = listOf(),
     val fullPlayers: List<SleeperPlayer> = listOf()
