@@ -17,6 +17,8 @@ import androidx.compose.ui.unit.sp
 import com.sleepyio.sleepyio.cache.SleeperCache
 import com.sleepyio.sleepyio.client.SleeperClient
 import com.sleepyio.sleepyio.client.model.league.SleeperMatchup
+import com.sleepyio.sleepyio.client.model.stats.PlayerStats
+import kotlinx.coroutines.async
 import kotlinx.coroutines.launch
 
 data class MatchupDisplay(
@@ -141,10 +143,21 @@ fun LeagueStateScreen(
                 val nflState = SleeperClient.getNflState()
                 currentWeek = nflState?.week?.toInt() ?: 1
 
-                // Fetch current week matchups, rosters, users, and players
+                // Fetch current week matchups, rosters, users, players, and projections
                 val rawMatchups = SleeperClient.getCurrentWeekMatchups(leagueId)
                 val rosters = SleeperClient.getRostersInLeague(leagueId)
                 val users = SleeperClient.getUsersInLeague(leagueId)
+
+                // Fetch projections and stats for current week
+                val season = nflState?.season ?: "2025"
+                val projectionsDeferred = scope.async {
+                    SleeperClient.getWeeklyProjections(season, currentWeek)
+                }
+                val statsDeferred = scope.async {
+                    SleeperClient.getWeeklyStats(season, currentWeek)
+                }
+                val weeklyProjections = projectionsDeferred.await()
+                val weeklyStats = statsDeferred.await()
 
                 // Create lookup maps for efficiency
                 val rosterMap = rosters.associateBy { it.rosterId.toLong() }
@@ -163,27 +176,36 @@ fun LeagueStateScreen(
                         val ownerName = user?.displayName ?: user?.userName ?: "Unknown Team"
                         val teamName = generateTeamName(ownerName)
 
-                        // Create player info for starters
+                        // Create player info for starters with real stats and projections
                         val starterInfo = matchup.starters.mapNotNull { playerId ->
                             SleeperCache.getPlayer(playerId)?.let { player ->
+                                val playerProjection = weeklyProjections[playerId]
+                                val playerActualStats = weeklyStats[playerId]
+                                val actualPts = playerActualStats?.fantasyPoints?.toFloat() ?: 0f
+                                val projectedPts = playerProjection?.fantasyPoints?.toFloat()
+                                val hasPlayed = playerActualStats != null && actualPts > 0f
+
                                 PlayerInfo(
                                     playerId = playerId,
                                     name = "${player.firstName ?: ""} ${player.lastName ?: ""}".trim(),
                                     position = player.position ?: "N/A",
-                                    points = 0f, // Would need weekly stats API
-                                    projectedPoints = null, // Would need projections API
-                                    isStarted = false, // Would need game status
+                                    points = actualPts,
+                                    projectedPoints = projectedPts,
+                                    isStarted = hasPlayed,
                                     status = player.injuryStatus
                                 )
                             }
                         }
+
+                        // Calculate total projected points from starter projections
+                        val totalProjected = starterInfo.mapNotNull { it.projectedPoints }.sum()
 
                         return TeamInfo(
                             rosterId = matchup.rosterId,
                             ownerName = ownerName,
                             teamName = teamName,
                             points = matchup.points,
-                            projectedPoints = null, // Would calculate from player projections
+                            projectedPoints = if (totalProjected > 0f) totalProjected else null,
                             avatar = user?.avatar,
                             starters = starterInfo,
                             playersYetToPlay = starterInfo.count { !it.isStarted }
@@ -509,6 +531,19 @@ fun TeamDisplay(
                     color = textColor
                 )
 
+                // Show projected points if available
+                team.projectedPoints?.let { projected ->
+                    Text(
+                        text = "Proj: ${(projected * 10).toInt() / 10.0}",
+                        fontSize = sizes.positionFontSize,
+                        color = if (team.points >= projected)
+                            MaterialTheme.colorScheme.primary
+                        else
+                            MaterialTheme.colorScheme.error,
+                        fontWeight = FontWeight.Medium
+                    )
+                }
+
                 // Show players yet to play if available
                 if (team.playersYetToPlay > 0) {
                     Text(
@@ -559,12 +594,24 @@ fun PlayerRow(
             }
         }
 
-        Text(
-            text = "${player.points} pts",
-            fontSize = sizes.playerNameFontSize,
-            fontWeight = FontWeight.Bold,
-            color = if (player.isStarted) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.primary
-        )
+        Column(horizontalAlignment = Alignment.End) {
+            Text(
+                text = "${(player.points * 10).toInt() / 10.0} pts",
+                fontSize = sizes.playerNameFontSize,
+                fontWeight = FontWeight.Bold,
+                color = if (player.isStarted) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.primary
+            )
+            player.projectedPoints?.let { proj ->
+                Text(
+                    text = "proj ${(proj * 10).toInt() / 10.0}",
+                    fontSize = sizes.positionFontSize,
+                    color = if (player.points >= proj)
+                        MaterialTheme.colorScheme.primary
+                    else
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
     }
 }
 
