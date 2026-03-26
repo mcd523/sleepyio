@@ -12,6 +12,7 @@ import com.sleepyio.sleepyio.client.model.player.SleeperPlayer
 import com.sleepyio.sleepyio.client.model.player.TrendingPlayer
 import com.sleepyio.sleepyio.client.model.draft.SleeperDraft
 import com.sleepyio.sleepyio.client.model.draft.SleeperPick
+import com.sleepyio.sleepyio.client.model.stats.PlayerStats
 import com.sleepyio.sleepyio.getPlatform
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.ktor.client.HttpClient
@@ -39,11 +40,14 @@ data object SleeperClient {
 
     private const val VERSION = "v1"
     private const val BASE_URL = "https://api.sleeper.app/$VERSION"
+    private const val STATS_BASE_URL = "https://api.sleeper.app/stats"
+    private const val PROJECTIONS_BASE_URL = "https://api.sleeper.app/projections"
     private const val USER_PATH = "$BASE_URL/user"
     private const val LEAGUE_PATH = "$BASE_URL/league"
     private const val DRAFT_PATH = "$BASE_URL/draft"
     private const val PLAYERS_PATH = "$BASE_URL/players"
     private const val STATE_PATH = "$BASE_URL/state"
+    private const val ALL_POSITIONS = "position[]=QB&position[]=RB&position[]=WR&position[]=TE&position[]=K&position[]=DEF"
 
     // User endpoints
     suspend fun getUser(username: String): SleeperUser? {
@@ -262,6 +266,57 @@ data object SleeperClient {
         } catch (e: Exception) {
             logger.error(e) { "Error fetching all transactions for league $leagueId" }
             emptyList()
+        }
+    }
+
+    // Stats and Projections endpoints (different base URL - no /v1/ prefix)
+    suspend fun getWeeklyStats(
+        season: String,
+        week: Int,
+        seasonType: String = "regular"
+    ): Map<String, PlayerStats> {
+        return try {
+            client.get("$STATS_BASE_URL/nfl/$season/$week?season_type=$seasonType&$ALL_POSITIONS").body()
+        } catch (e: Exception) {
+            logger.error(e) { "Error fetching stats for $season week $week" }
+            emptyMap()
+        }
+    }
+
+    suspend fun getWeeklyProjections(
+        season: String,
+        week: Int,
+        seasonType: String = "regular"
+    ): Map<String, PlayerStats> {
+        return try {
+            client.get("$PROJECTIONS_BASE_URL/nfl/$season/$week?season_type=$seasonType&$ALL_POSITIONS").body()
+        } catch (e: Exception) {
+            logger.error(e) { "Error fetching projections for $season week $week" }
+            emptyMap()
+        }
+    }
+
+    suspend fun getSeasonStats(
+        season: String,
+        seasonType: String = "regular"
+    ): Map<String, PlayerStats> {
+        return try {
+            client.get("$STATS_BASE_URL/nfl/$season?season_type=$seasonType&$ALL_POSITIONS").body()
+        } catch (e: Exception) {
+            logger.error(e) { "Error fetching season stats for $season" }
+            emptyMap()
+        }
+    }
+
+    suspend fun getSeasonProjections(
+        season: String,
+        seasonType: String = "regular"
+    ): Map<String, PlayerStats> {
+        return try {
+            client.get("$PROJECTIONS_BASE_URL/nfl/$season?season_type=$seasonType&$ALL_POSITIONS").body()
+        } catch (e: Exception) {
+            logger.error(e) { "Error fetching season projections for $season" }
+            emptyMap()
         }
     }
 
