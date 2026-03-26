@@ -135,7 +135,7 @@ fun ScheduleStrengthScreen(
             errorMessage != null -> Text(errorMessage!!, color = MaterialTheme.colorScheme.error)
             else -> LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 items(schedules) { schedule ->
-                    ScheduleStrengthCard(schedule)
+                    ScheduleStrengthCard(schedule, totalTeams = schedules.size)
                 }
             }
         }
@@ -143,7 +143,7 @@ fun ScheduleStrengthScreen(
 }
 
 @Composable
-private fun ScheduleStrengthCard(schedule: TeamScheduleStrength) {
+private fun ScheduleStrengthCard(schedule: TeamScheduleStrength, totalTeams: Int) {
     var isExpanded by remember { mutableStateOf(false) }
 
     Card(
@@ -151,9 +151,9 @@ private fun ScheduleStrengthCard(schedule: TeamScheduleStrength) {
         shape = RoundedCornerShape(10.dp),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
         colors = CardDefaults.cardColors(
-            containerColor = when (schedule.rank) {
-                1, 2 -> MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.2f) // Hardest
-                in (schedule.rank - 1)..Int.MAX_VALUE -> MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.2f) // Easiest
+            containerColor = when {
+                schedule.rank <= 2 -> MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.2f) // Hardest
+                schedule.rank >= totalTeams - 1 -> MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.2f) // Easiest
                 else -> MaterialTheme.colorScheme.surface
             }
         )

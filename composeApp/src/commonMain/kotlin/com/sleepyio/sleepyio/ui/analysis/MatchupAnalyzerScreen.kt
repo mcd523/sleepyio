@@ -111,11 +111,11 @@ fun MatchupAnalyzerScreen(
                     val team1Starters = analyzeTeam(team1)
                     val team2Starters = analyzeTeam(team2)
 
-                    val team1Unified = team1Starters.map {
-                        UnifiedPlayer(it.name, it.name, it.position, it.team, true, it.actualPoints, it.projectedPoints, it.injuryStatus)
+                    val team1Unified = team1Starters.mapIndexed { idx, it ->
+                        UnifiedPlayer("t1_$idx", it.name, it.position, it.team, true, it.actualPoints, it.projectedPoints, it.injuryStatus)
                     }
-                    val team2Unified = team2Starters.map {
-                        UnifiedPlayer(it.name, it.name, it.position, it.team, true, it.actualPoints, it.projectedPoints, it.injuryStatus)
+                    val team2Unified = team2Starters.mapIndexed { idx, it ->
+                        UnifiedPlayer("t2_$idx", it.name, it.position, it.team, true, it.actualPoints, it.projectedPoints, it.injuryStatus)
                     }
 
                     val winProb = SleeperService.estimateWinProbability(team1Unified, team2Unified)

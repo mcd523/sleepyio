@@ -11,6 +11,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.sleepyio.sleepyio.client.SleeperClient
 import com.sleepyio.sleepyio.service.SleeperService
 import kotlinx.coroutines.launch
 
@@ -29,7 +30,7 @@ fun WaiverTargetsScreen(
         scope.launch {
             try {
                 isLoading = true
-                val nflState = com.sleepyio.sleepyio.client.SleeperClient.getNflState()
+                val nflState = SleeperClient.getNflState()
                 val season = nflState?.season ?: "2025"
                 val week = nflState?.week?.toInt() ?: 1
 

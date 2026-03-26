@@ -1,5 +1,6 @@
 package com.sleepyio.sleepyio.client.model.stats
 
+import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 @Serializable
@@ -31,7 +32,8 @@ data class PlayerStats(
     // Defense stats
     val def_td: Double? = null,
     val sack: Double? = null,
-    val int: Double? = null,
+    @SerialName("int")
+    val interceptions: Double? = null,
     val fum_rec: Double? = null,
     val pts_allow: Double? = null,
     val safe: Double? = null,

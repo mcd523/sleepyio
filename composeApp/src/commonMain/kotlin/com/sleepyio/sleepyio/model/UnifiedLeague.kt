@@ -58,7 +58,7 @@ data class UnifiedMatchup(
 
 // Mappers from platform-specific to unified models
 object SleeperMapper {
-    fun toUnifiedLeague(
+    suspend fun toUnifiedLeague(
         league: SleeperLeague,
         rosters: List<SleeperRoster>,
         users: List<SleeperUser>,
@@ -68,12 +68,42 @@ object SleeperMapper {
     ): UnifiedLeague {
         val userMap = users.associateBy { it.userId }
 
+        val teams = rosters.map { roster ->
+            val user = roster.ownerId?.let { userMap[it] }
+            val ownerName = user?.displayName ?: user?.userName ?: "Team ${roster.rosterId}"
+
+            val allPlayers = roster.players.map { playerId ->
+                val player = playerCache(playerId)
+                val isStarter = playerId in roster.starters
+                UnifiedPlayer(
+                    id = playerId,
+                    name = if (player != null) "${player.firstName ?: ""} ${player.lastName ?: ""}".trim() else playerId,
+                    position = player?.position ?: "N/A",
+                    team = player?.team,
+                    isStarter = isStarter,
+                    actualPoints = stats[playerId]?.fantasyPoints,
+                    projectedPoints = projections[playerId]?.fantasyPoints,
+                    injuryStatus = player?.injuryStatus
+                )
+            }
+
+            UnifiedTeam(
+                id = roster.rosterId.toString(),
+                name = ownerName,
+                ownerName = ownerName,
+                roster = allPlayers,
+                starters = allPlayers.filter { it.isStarter },
+                bench = allPlayers.filter { !it.isStarter }
+            )
+        }
+
         return UnifiedLeague(
             id = league.leagueId.toString(),
             name = league.leagueName ?: "Unnamed League",
             platform = Platform.SLEEPER,
             season = league.season,
-            size = league.leagueSize.toIntOrNull() ?: 0
+            size = league.leagueSize.toIntOrNull() ?: 0,
+            teams = teams
         )
     }
 
