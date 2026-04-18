@@ -48,6 +48,9 @@ kotlin {
         androidMain.dependencies {
             implementation(compose.preview)
             implementation(libs.androidx.activity.compose)
+            implementation(libs.androidx.biometric)
+            implementation(libs.androidx.fragment)
+            implementation(libs.androidx.security.crypto)
         }
         commonMain.dependencies {
             implementation(compose.runtime)

@@ -6,10 +6,6 @@ import platform.Foundation.NSDate
 import platform.UserNotifications.UNAuthorizationOptionAlert
 import platform.UserNotifications.UNAuthorizationOptionBadge
 import platform.UserNotifications.UNAuthorizationOptionSound
-import platform.UserNotifications.UNAuthorizationStatusAuthorized
-import platform.UserNotifications.UNAuthorizationStatusDenied
-import platform.UserNotifications.UNAuthorizationStatusNotDetermined
-import platform.UserNotifications.UNAuthorizationStatusProvisional
 import platform.UserNotifications.UNMutableNotificationContent
 import platform.UserNotifications.UNNotificationRequest
 import platform.UserNotifications.UNTimeIntervalNotificationTrigger
@@ -64,12 +60,4 @@ actual class NotificationCenter {
 
     private fun nowEpochMs(): Long =
         (NSDate().timeIntervalSince1970 * 1000).toLong()
-
-    @Suppress("unused")
-    private fun mapAuthorizationStatus(status: Long): PermissionResult = when (status) {
-        UNAuthorizationStatusAuthorized, UNAuthorizationStatusProvisional -> PermissionResult.GRANTED
-        UNAuthorizationStatusDenied -> PermissionResult.DENIED
-        UNAuthorizationStatusNotDetermined -> PermissionResult.NOT_DETERMINED
-        else -> PermissionResult.NOT_DETERMINED
-    }
 }

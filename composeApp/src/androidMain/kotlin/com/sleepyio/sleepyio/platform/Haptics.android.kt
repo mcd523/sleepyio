@@ -11,16 +11,22 @@ import android.os.VibratorManager
  * Vibrator rather than `View.performHapticFeedback` so the capability is
  * available without a Compose `View` reference — Composables can still
  * call this from effect blocks that don't have `LocalView`.
+ *
+ * Primary constructor is no-arg to match the common `expect class Haptics`
+ * (which has an implicit no-arg constructor). The Android [Context] is
+ * fetched lazily from [AndroidContextProvider], which the platform
+ * entry point installs before any capability is touched.
  */
-actual class Haptics(private val context: Context) {
+actual class Haptics {
 
     private val vibrator: Vibrator? by lazy {
+        val ctx = AndroidContextProvider.requireContext()
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            val mgr = context.getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as? VibratorManager
+            val mgr = ctx.getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as? VibratorManager
             mgr?.defaultVibrator
         } else {
             @Suppress("DEPRECATION")
-            context.getSystemService(Context.VIBRATOR_SERVICE) as? Vibrator
+            ctx.getSystemService(Context.VIBRATOR_SERVICE) as? Vibrator
         }
     }
 
