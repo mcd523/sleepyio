@@ -24,21 +24,22 @@ import kotlinx.coroutines.suspendCancellableCoroutine
  * - For future-dated notifications a production impl would use
  *   `AlarmManager.setExactAndAllowWhileIdle` + a `BroadcastReceiver`
  *   that re-posts on fire; that wiring lives in a future phase-2 task
- *   (see MOBILE_ARCHITECTURE.md "Background refresh strategy").
- *   For now anything in the future is dropped with a tagged log so
+ *   (see MOBILE_ARCHITECTURE.md "Background refresh strategy"). For
+ *   now anything in the future is dropped with a tagged log so
  *   call-sites can unit-test the happy path.
  *
  * Permission model:
  * - Android 13 (API 33) introduced runtime POST_NOTIFICATIONS.
- * - [requestPermission] returns GRANTED pre-33 because the permission
- *   is install-time granted.
- * - The actual runtime prompt needs an Activity; this class only reads
- *   the current state. The Activity-side prompt is wired in
- *   [requestPermissionFromActivity] (called from the platform entry point).
+ * - [requestPermission] reports the current granted state. The
+ *   interactive Activity-side prompt is the host's job; when the
+ *   caller gets NOT_DETERMINED it should show UI and request the
+ *   permission via the standard launcher pattern.
+ * - Pre-33 returns GRANTED because the permission is install-time.
  */
-actual class NotificationCenter(private val context: Context) {
+actual class NotificationCenter {
 
-    private val manager = NotificationManagerCompat.from(context.applicationContext)
+    private val context: Context get() = AndroidContextProvider.requireContext()
+    private val manager get() = NotificationManagerCompat.from(context)
 
     init {
         ensureChannel()

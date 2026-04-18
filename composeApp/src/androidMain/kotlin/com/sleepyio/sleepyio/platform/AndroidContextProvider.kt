@@ -19,16 +19,12 @@ object AndroidContextProvider {
     private var appContext: Context? = null
 
     @Volatile
-    private var activityRef: FragmentActivity? = null
+    private var currentActivity: () -> FragmentActivity? = { null }
 
     fun install(context: Context, activityProvider: () -> FragmentActivity?) {
         appContext = context.applicationContext
-        activityRef = activityProvider()
         currentActivity = activityProvider
     }
-
-    @Volatile
-    private var currentActivity: () -> FragmentActivity? = { null }
 
     fun requireContext(): Context =
         appContext ?: error(

@@ -1,30 +1,22 @@
 package com.sleepyio.sleepyio.platform
 
-import android.content.Context
-import androidx.fragment.app.FragmentActivity
-
 /**
- * Android [PlatformCapabilities] aggregate. Construct once from the host
+ * Android [PlatformCapabilities] aggregate. Construct once after
+ * [AndroidContextProvider.install] has been called from the host
  * Activity (typically `MainActivity.onCreate`) and reuse for the process
  * lifetime — internal singletons (network callbacks, lifecycle observers)
  * are not safe to recreate per-screen.
  *
- * [activityProvider] is a `() -> FragmentActivity?` because the only
- * capability that needs a live Activity is [BiometricAuth], and wiring
- * that through a WeakReference-style lookup lets the rest of the
- * capabilities remain activity-independent.
+ * All capabilities have no-arg constructors to match the common
+ * `expect class` declarations; their Android resources come from the
+ * installed [AndroidContextProvider].
  */
-actual class PlatformCapabilities(
-    context: Context,
-    activityProvider: () -> FragmentActivity?,
-) {
-    private val appContext = context.applicationContext
-
-    actual val haptics: Haptics = Haptics(appContext)
-    actual val secureStorage: SecureStorage = SecureStorage(appContext)
-    actual val notifications: NotificationCenter = NotificationCenter(appContext)
-    actual val connectivity: Connectivity = Connectivity(appContext)
+actual class PlatformCapabilities {
+    actual val haptics: Haptics = Haptics()
+    actual val secureStorage: SecureStorage = SecureStorage()
+    actual val notifications: NotificationCenter = NotificationCenter()
+    actual val connectivity: Connectivity = Connectivity()
     actual val lifecycle: AppLifecycle = AppLifecycle()
-    actual val device: DeviceInfo = DeviceInfo(appContext)
-    actual val biometric: BiometricAuth = BiometricAuth(appContext, activityProvider)
+    actual val device: DeviceInfo = DeviceInfo()
+    actual val biometric: BiometricAuth = BiometricAuth()
 }

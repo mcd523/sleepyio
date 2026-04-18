@@ -21,14 +21,14 @@ import kotlinx.coroutines.flow.asStateFlow
  * (has internet, not a captive portal) — matches what the advisor UI
  * actually cares about.
  */
-actual class Connectivity(context: Context) {
+actual class Connectivity {
 
     private val _isOnline = MutableStateFlow(false)
     actual val isOnline: StateFlow<Boolean> = _isOnline.asStateFlow()
 
     init {
-        val cm = context.applicationContext
-            .getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager
+        val context = AndroidContextProvider.requireContext()
+        val cm = context.getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager
 
         if (cm != null) {
             _isOnline.value = cm.hasValidated()

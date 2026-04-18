@@ -7,6 +7,7 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.fragment.app.FragmentActivity
+import com.sleepyio.sleepyio.platform.AndroidContextProvider
 import com.sleepyio.sleepyio.platform.DeepLink
 import com.sleepyio.sleepyio.platform.DeepLinkParser
 import com.sleepyio.sleepyio.platform.PlatformCapabilities
@@ -27,16 +28,13 @@ class MainActivity : FragmentActivity() {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
 
-        // Install the process-scoped capability surface. Composables reach it
-        // via com.sleepyio.sleepyio.platform.LocalPlatformCapabilities — the
-        // CompositionLocalProvider wiring is intentionally left for a
-        // follow-up (we don't modify App.kt in this workstream).
-        PlatformCapabilitiesHolder.install(
-            PlatformCapabilities(
-                context = applicationContext,
-                activityProvider = { this },
-            ),
+        // Install the Context/Activity hooks the `platform.*` actuals read from,
+        // then build and publish the aggregate capability surface.
+        AndroidContextProvider.install(
+            context = applicationContext,
+            activityProvider = { this },
         )
+        PlatformCapabilitiesHolder.install(PlatformCapabilities())
 
         pendingDeepLink = extractDeepLink(intent)
 

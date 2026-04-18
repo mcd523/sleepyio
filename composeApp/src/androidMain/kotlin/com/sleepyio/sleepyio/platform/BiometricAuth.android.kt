@@ -1,10 +1,8 @@
 package com.sleepyio.sleepyio.platform
 
-import android.content.Context
 import androidx.biometric.BiometricManager
 import androidx.biometric.BiometricPrompt
 import androidx.core.content.ContextCompat
-import androidx.fragment.app.FragmentActivity
 import kotlin.coroutines.resume
 import kotlinx.coroutines.suspendCancellableCoroutine
 
@@ -12,9 +10,9 @@ import kotlinx.coroutines.suspendCancellableCoroutine
  * Android [BiometricAuth] backed by `androidx.biometric:BiometricPrompt`.
  *
  * Constraints:
- * - Needs a [FragmentActivity] host. The [activityProvider] is called
- *   lazily at prompt time so the capability can be constructed before
- *   any activity exists.
+ * - Needs a `FragmentActivity` host. Resolved lazily via
+ *   [AndroidContextProvider.currentActivityOrNull] so the capability can
+ *   be constructed before any activity exists.
  * - API 28 required; older devices return UNAVAILABLE synchronously
  *   (BiometricManager tells us via `canAuthenticate`).
  *
@@ -23,12 +21,10 @@ import kotlinx.coroutines.suspendCancellableCoroutine
  *   PIN/pattern fallback). Weak biometrics are not accepted because
  *   we're gating revealable tokens.
  */
-actual class BiometricAuth(
-    private val context: Context,
-    private val activityProvider: () -> FragmentActivity?,
-) {
+actual class BiometricAuth {
 
     actual suspend fun authenticate(reason: String): AuthResult {
+        val context = AndroidContextProvider.requireContext()
         val manager = BiometricManager.from(context)
         val allowed = BiometricManager.Authenticators.BIOMETRIC_STRONG or
             BiometricManager.Authenticators.DEVICE_CREDENTIAL
@@ -36,7 +32,7 @@ actual class BiometricAuth(
             BiometricManager.BIOMETRIC_SUCCESS -> Unit
             else -> return AuthResult.UNAVAILABLE
         }
-        val activity = activityProvider() ?: return AuthResult.UNAVAILABLE
+        val activity = AndroidContextProvider.currentActivityOrNull() ?: return AuthResult.UNAVAILABLE
 
         return suspendCancellableCoroutine { cont ->
             val executor = ContextCompat.getMainExecutor(context)
