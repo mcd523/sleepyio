@@ -69,9 +69,15 @@ kotlin {
             implementation("com.composables:core:1.46.0")
             implementation("io.github.oshai:kotlin-logging:$kotlin_logging_version")
             implementation("eu.vendeli:rethis:0.3.5")
+            // NOTE: Phase 1 refactor — Koin for dependency injection.
+            // See docs/architecture/REFACTOR_PLAN.md §4.
+            implementation(libs.koin.core)
         }
         commonTest.dependencies {
             implementation(libs.kotlin.test)
+            // NOTE: Phase 1 refactor — unlocks TestScope.advanceTimeBy for
+            // time-dependent analyzer tests. See REFACTOR_PLAN.md §10.
+            implementation(libs.kotlinx.coroutinesTest)
         }
         jvmMain.dependencies {
             implementation(compose.desktop.currentOs)

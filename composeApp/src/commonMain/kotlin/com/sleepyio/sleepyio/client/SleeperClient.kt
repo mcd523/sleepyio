@@ -21,7 +21,12 @@ import io.ktor.client.request.get
 import io.ktor.serialization.kotlinx.json.json
 import kotlinx.serialization.json.Json
 
-data object SleeperClient {
+// NOTE: Phase 1 refactor — now implements [SleeperRepository]. All methods
+// that the domain layer calls must match the interface signature. This is
+// a narrow, additive change: no behavior change, the existing public
+// surface is preserved for every other caller. See
+// docs/architecture/REFACTOR_PLAN.md §4 + §11.
+data object SleeperClient : SleeperRepository {
     private val logger = KotlinLogging.logger { }
     private val platform = getPlatform()
     private val client = HttpClient(platform.clientEngine) {
@@ -101,7 +106,7 @@ data object SleeperClient {
         }
     }
 
-    suspend fun getRostersInLeague(leagueId: Long): List<SleeperRoster> {
+    override suspend fun getRostersInLeague(leagueId: Long): List<SleeperRoster> {
         return try {
             client.get("$LEAGUE_PATH/$leagueId/rosters").body()
         } catch (e: Exception) {
@@ -193,7 +198,7 @@ data object SleeperClient {
     }
 
     // Player endpoints
-    suspend fun getAllPlayers(sport: String = "nfl"): Map<String, SleeperPlayer> {
+    override suspend fun getAllPlayers(sport: String): Map<String, SleeperPlayer> {
         return try {
             client.get("$PLAYERS_PATH/$sport").body()
         } catch (e: Exception) {
@@ -202,11 +207,11 @@ data object SleeperClient {
         }
     }
 
-    suspend fun getTrendingPlayers(
+    override suspend fun getTrendingPlayers(
         sport: String,
         type: String,
-        lookbackHours: Int = 24,
-        limit: Int = 25
+        lookbackHours: Int,
+        limit: Int,
     ): List<TrendingPlayer> {
         return try {
             client.get("$PLAYERS_PATH/$sport/trending/$type?lookback_hours=$lookbackHours&limit=$limit").body()

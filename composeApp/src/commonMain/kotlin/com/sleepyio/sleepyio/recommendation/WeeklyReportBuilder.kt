@@ -1,6 +1,6 @@
 package com.sleepyio.sleepyio.recommendation
 
-import com.sleepyio.sleepyio.client.SleeperClient
+import com.sleepyio.sleepyio.client.SleeperRepository
 import com.sleepyio.sleepyio.client.model.league.SleeperRoster
 import com.sleepyio.sleepyio.client.model.player.SleeperPlayer
 import com.sleepyio.sleepyio.insight.InsightAggregator
@@ -25,8 +25,10 @@ import kotlin.math.abs
  * dials up waiver suggestions via [WaiverWireAnalyzer], and synthesises a
  * one-sentence headline for the notification row.
  */
+// NOTE: Phase 1 refactor — depends on [SleeperRepository] rather than the
+// concrete [SleeperClient] singleton. See docs/architecture/REFACTOR_PLAN.md §4.
 class WeeklyReportBuilder(
-    private val sleeper: SleeperClient,
+    private val sleeper: SleeperRepository,
     private val aggregator: InsightAggregator,
     private val startSit: StartSitAnalyzer,
     private val waivers: WaiverWireAnalyzer,

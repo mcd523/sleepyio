@@ -1,6 +1,7 @@
 package com.sleepyio.sleepyio.insight
 
 import com.sleepyio.sleepyio.client.SleeperClient
+import com.sleepyio.sleepyio.client.SleeperRepository
 import com.sleepyio.sleepyio.client.model.player.SleeperPlayer
 import com.sleepyio.sleepyio.insight.model.DefenseVsPosition
 import com.sleepyio.sleepyio.insight.model.FantasyImpact
@@ -37,8 +38,11 @@ import kotlinx.coroutines.coroutineScope
  * try/catch so a single misbehaving source can only cost us one factor; the
  * aggregator never throws through to the UI.
  */
+// NOTE: Phase 1 refactor — depends on [SleeperRepository] rather than the
+// concrete [SleeperClient] singleton so tests can supply a fake. The `open`
+// modifier stays for the QA test doubles flagged in docs/qa/KNOWN_ISSUES.md.
 open class InsightAggregator(
-    private val sleeper: SleeperClient = SleeperClient,
+    private val sleeper: SleeperRepository = SleeperClient,
     private val injury: InjurySource,
     private val news: NewsSource,
     private val weather: WeatherSource,

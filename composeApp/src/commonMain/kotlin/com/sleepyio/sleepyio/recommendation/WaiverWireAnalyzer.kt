@@ -1,6 +1,7 @@
 package com.sleepyio.sleepyio.recommendation
 
 import com.sleepyio.sleepyio.client.SleeperClient
+import com.sleepyio.sleepyio.client.SleeperRepository
 import com.sleepyio.sleepyio.insight.InsightAggregator
 import com.sleepyio.sleepyio.insight.model.MatchupGrade
 import com.sleepyio.sleepyio.insight.model.PlayerInsight
@@ -20,9 +21,13 @@ import kotlin.math.min
  * against the breakout indicators from `ANALYSIS_FRAMEWORK.md` section 3.1.
  * FAAB recommendations map priority score onto the tier table in section 3.2.
  */
+// NOTE: Phase 1 refactor — depends on [SleeperRepository] rather than the
+// concrete [SleeperClient] singleton. That closes the testability gap
+// documented in docs/qa/KNOWN_ISSUES.md and matches the principle of
+// explicit dependencies in docs/architecture/REFACTOR_PLAN.md §1.
 class WaiverWireAnalyzer(
     private val aggregator: InsightAggregator,
-    private val sleeper: SleeperClient = SleeperClient,
+    private val sleeper: SleeperRepository = SleeperClient,
 ) {
     private val logger = KotlinLogging.logger {}
 
