@@ -37,7 +37,7 @@ import kotlinx.coroutines.coroutineScope
  * try/catch so a single misbehaving source can only cost us one factor; the
  * aggregator never throws through to the UI.
  */
-class InsightAggregator(
+open class InsightAggregator(
     private val sleeper: SleeperClient = SleeperClient,
     private val injury: InjurySource,
     private val news: NewsSource,
@@ -54,7 +54,7 @@ class InsightAggregator(
      * the batch variant so the "fetch week-scoped inputs once" discipline is
      * preserved even for single-player calls.
      */
-    suspend fun insightFor(playerId: String, week: Int): PlayerInsight {
+    open suspend fun insightFor(playerId: String, week: Int): PlayerInsight {
         return insightFor(listOf(playerId), week)[playerId]
             ?: fallbackInsight(playerId, week, player = null)
     }
@@ -66,7 +66,7 @@ class InsightAggregator(
      * board — any source error is swallowed (with a log line) and the affected
      * factor simply arrives as null/empty.
      */
-    suspend fun insightFor(playerIds: Collection<String>, week: Int): Map<String, PlayerInsight> {
+    open suspend fun insightFor(playerIds: Collection<String>, week: Int): Map<String, PlayerInsight> {
         if (playerIds.isEmpty()) return emptyMap()
 
         val allPlayers: Map<String, SleeperPlayer> = runCatchingSource("sleeper.getAllPlayers") {

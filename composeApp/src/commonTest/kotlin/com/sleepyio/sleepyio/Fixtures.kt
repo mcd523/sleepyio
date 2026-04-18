@@ -7,6 +7,38 @@ import com.sleepyio.sleepyio.insight.model.MatchupRating
 import com.sleepyio.sleepyio.insight.model.PlayerInsight
 import com.sleepyio.sleepyio.insight.model.ProjectionRange
 import com.sleepyio.sleepyio.insight.model.UsageTrend
+import kotlin.coroutines.Continuation
+import kotlin.coroutines.EmptyCoroutineContext
+import kotlin.coroutines.startCoroutine
+
+/**
+ * Multiplatform-safe suspend-test runner.
+ *
+ * `kotlinx-coroutines-test` is not on the classpath (see
+ * composeApp/build.gradle.kts) and `kotlinx.coroutines.runBlocking` is not
+ * exposed from commonMain for JS/wasmJs targets. Our suspend code paths
+ * under test never truly suspend (no dispatcher hop, no delay) so running
+ * the continuation synchronously via [startCoroutine] is sufficient. If a
+ * future test needs real async scheduling we should add the
+ * `kotlinx-coroutines-test` dependency rather than hacking around it.
+ */
+internal fun runSuspending(body: suspend () -> Unit) {
+    var error: Throwable? = null
+    var completed = false
+    body.startCoroutine(object : Continuation<Unit> {
+        override val context = EmptyCoroutineContext
+        override fun resumeWith(result: Result<Unit>) {
+            completed = true
+            error = result.exceptionOrNull()
+        }
+    })
+    check(completed) {
+        "runSuspending body suspended; tests must not use real async APIs " +
+            "(delay, coroutineScope with dispatcher, etc). Add kotlinx-coroutines-test " +
+            "and switch to runTest if you need that."
+    }
+    error?.let { throw it }
+}
 
 /**
  * Shared, deterministic [PlayerInsight] fixtures used by every analyzer test.
