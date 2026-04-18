@@ -61,9 +61,9 @@ class OpenMeteoWeatherSource : WeatherSource {
             // Pick the hour nearest kickoff.
             val times = hours.time.orEmpty()
             val idx = pickIndexForKickoff(times, kickoffEpochMs).coerceAtLeast(0)
-            val wind = hours.windSpeed10m?.getOrNull(idx) ?: 0.0
-            val temp = hours.temperature2m?.getOrNull(idx) ?: 60.0
-            val precip = hours.precipitationProbability?.getOrNull(idx) ?: 0
+            val wind = hours.wind_speed_10m?.getOrNull(idx) ?: 0.0
+            val temp = hours.temperature_2m?.getOrNull(idx) ?: 60.0
+            val precip = hours.precipitation_probability?.getOrNull(idx) ?: 0
             WeatherForecast(
                 windMph = wind.roundToInt(),
                 precipitationPct = precip,
@@ -92,11 +92,7 @@ class OpenMeteoWeatherSource : WeatherSource {
         val temperature_2m: List<Double>? = null,
         val wind_speed_10m: List<Double>? = null,
         val precipitation_probability: List<Int>? = null,
-    ) {
-        val temperature2m get() = temperature_2m
-        val windSpeed10m get() = wind_speed_10m
-        val precipitationProbability get() = precipitation_probability
-    }
+    )
 
     companion object {
         /**

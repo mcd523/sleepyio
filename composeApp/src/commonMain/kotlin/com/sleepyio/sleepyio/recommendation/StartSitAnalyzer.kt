@@ -58,7 +58,7 @@ class StartSitAnalyzer(
 
         val summary = buildSummary(a, b, startsA, factors)
         val rationale = Rationale(
-            factors = factors.ensureMinimumFactors(a, b),
+            factors = factors.ensureMinimumFactors(),
             summary = summary,
         )
 
@@ -141,7 +141,7 @@ class StartSitAnalyzer(
     }
 
     /** Guarantee the Rationale invariant: at least 2 factors. */
-    private fun List<Factor>.ensureMinimumFactors(a: PlayerInsight, b: PlayerInsight): List<Factor> {
+    private fun List<Factor>.ensureMinimumFactors(): List<Factor> {
         if (size >= 2) return this
         val padded = toMutableList()
         if (none { it.label == "Matchup" }) {
