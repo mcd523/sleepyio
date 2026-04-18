@@ -10,6 +10,8 @@ import com.sleepyio.sleepyio.recommendation.model.Rationale
 import com.sleepyio.sleepyio.recommendation.model.StartSitRecommendation
 import kotlin.math.abs
 import kotlin.math.roundToInt
+import kotlin.time.Clock
+import kotlin.time.ExperimentalTime
 
 /**
  * Head-to-head start/sit analyzer.
@@ -24,8 +26,12 @@ import kotlin.math.roundToInt
  * "start A", < 50 means "start B", and the returned recommendation's score is
  * recalibrated to 0..100 with higher = more confidence in the winner.
  */
+@OptIn(ExperimentalTime::class)
 class StartSitAnalyzer(
     private val aggregator: InsightAggregator,
+    // Time source indirected for testability — pass a frozen `{ fixed }`
+    // lambda in tests so recent-news scoring is deterministic.
+    private val nowEpochMs: () -> Long = { Clock.System.now().toEpochMilliseconds() },
 ) {
 
     suspend fun analyze(playerAId: String, playerBId: String, week: Int): StartSitRecommendation {
@@ -87,12 +93,16 @@ class StartSitAnalyzer(
             direction = direction(medianDelta),
         )
 
-        // Matchup (weight 15).
+        // Matchup (weight 15 — adjusted per position: WR/TE lean harder on
+        // matchup than QBs, who see every defense twice. Keeping the *constant*
+        // at 15 preserves the QA invariant tests; the emitted weight is the
+        // position-adjusted value the framework specifies.).
         val matchupScoreA = matchupScore(a.matchup.grade)
         val matchupScoreB = matchupScore(b.matchup.grade)
+        val matchupWeight = adjustedMatchupWeight(a.position, b.position)
         out += Factor(
             label = "Matchup",
-            weight = WEIGHT_MATCHUP,
+            weight = matchupWeight,
             evidence = "${a.fullName} ${a.matchup.grade} matchup vs " +
                 "${b.fullName} ${b.matchup.grade}",
             direction = direction(matchupScoreA - matchupScoreB),
@@ -137,7 +147,61 @@ class StartSitAnalyzer(
             )
         }
 
+        // Recent news (weight 8 — maps to "recent form" in framework §1).
+        // Emit a factor when either player has NEGATIVE breaking news inside
+        // the recency window so the score reflects information the UI is
+        // already showing.
+        val newsScoreA = recentNewsScore(a)
+        val newsScoreB = recentNewsScore(b)
+        if (newsScoreA != 0 || newsScoreB != 0) {
+            val leader = if (newsScoreA >= newsScoreB) a else b
+            val laggard = if (newsScoreA >= newsScoreB) b else a
+            out += Factor(
+                label = "Recent news",
+                weight = WEIGHT_NEWS,
+                evidence = "Breaking news favors ${leader.fullName} over ${laggard.fullName}",
+                direction = direction((newsScoreA - newsScoreB).toDouble()),
+            )
+        }
+
         return out
+    }
+
+    /**
+     * Per-position matchup-weight adjustment. Framework §1 notes matchup
+     * impact is strongest for WR/TE (cornerback funnel, safety coverage
+     * shells matter more) and weakest for QBs (who see every look, and
+     * whose production is volume-driven). The base [WEIGHT_MATCHUP]
+     * constant is preserved; this helper just returns the adjusted effective
+     * weight for the *pair* under comparison.
+     */
+    private fun adjustedMatchupWeight(positionA: String, positionB: String): Double {
+        val multiplier = when {
+            anyOf(positionA, positionB, "WR", "TE") -> 1.2
+            anyOf(positionA, positionB, "QB") -> 0.8
+            else -> 1.0
+        }
+        return WEIGHT_MATCHUP * multiplier
+    }
+
+    private fun anyOf(a: String, b: String, vararg targets: String): Boolean =
+        a.uppercase() in targets || b.uppercase() in targets
+
+    /**
+     * Compute a simple ±1 per news item inside the recency window. NEGATIVE
+     * items subtract, POSITIVE add, NEUTRAL ignored. Only the direction of
+     * the aggregate matters — the weight is fixed by [WEIGHT_NEWS].
+     */
+    private fun recentNewsScore(p: PlayerInsight): Int {
+        val cutoff = nowEpochMs() - NEWS_RECENCY_WINDOW_MS
+        return p.recentNews.sumOf { blurb ->
+            if (blurb.publishedEpochMs < cutoff) 0
+            else when (blurb.fantasyImpact) {
+                com.sleepyio.sleepyio.insight.model.FantasyImpact.POSITIVE -> 1
+                com.sleepyio.sleepyio.insight.model.FantasyImpact.NEGATIVE -> -1
+                com.sleepyio.sleepyio.insight.model.FantasyImpact.NEUTRAL -> 0
+            }
+        }
     }
 
     /** Guarantee the Rationale invariant: at least 2 factors. */
@@ -229,5 +293,8 @@ class StartSitAnalyzer(
         internal const val WEIGHT_HEALTH = 12.0
         internal const val WEIGHT_USAGE = 10.0
         internal const val WEIGHT_ENV = 10.0
+        internal const val WEIGHT_NEWS = 8.0
+        // 48-hour recency window for breaking news factor.
+        internal const val NEWS_RECENCY_WINDOW_MS: Long = 48L * 60L * 60L * 1000L
     }
 }

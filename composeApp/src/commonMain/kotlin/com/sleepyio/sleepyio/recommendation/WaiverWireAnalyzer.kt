@@ -36,13 +36,16 @@ class WaiverWireAnalyzer(
         rosterId: Long,
         week: Int,
         limit: Int = 5,
+        positionFilter: String? = null,
     ): List<WaiverTarget> {
-        val ownedIds: Set<String> = try {
-            sleeper.getRostersInLeague(leagueId).flatMap { it.players }.toSet()
+        val rosters = try {
+            sleeper.getRostersInLeague(leagueId)
         } catch (e: Exception) {
             logger.error(e) { "WaiverWireAnalyzer failed to load rosters for league=$leagueId" }
-            emptySet()
+            emptyList()
         }
+        val ownedIds: Set<String> = rosters.flatMap { it.players }.toSet()
+        val ownRoster = rosters.firstOrNull { it.rosterId.toLong() == rosterId }
 
         val trending = try {
             sleeper.getTrendingPlayers("nfl", "add", 24, 50)
@@ -56,7 +59,25 @@ class WaiverWireAnalyzer(
 
         val insights = aggregator.insightFor(candidates, week)
 
-        return candidates.mapNotNull { id ->
+        // Pre-compute the caller's bench insights once so we can suggest
+        // realistic drops. We pull insights for every non-starter rostered
+        // player — the starters are *kept*, the bench is *droppable*.
+        val benchInsights: Map<String, PlayerInsight> = ownRoster?.let { r ->
+            val benchIds = (r.players - r.starters.toSet()).toSet()
+            if (benchIds.isEmpty()) emptyMap() else aggregator.insightFor(benchIds, week)
+        } ?: emptyMap()
+
+        val filtered = if (positionFilter == null) {
+            candidates
+        } else {
+            val wanted = positionFilter.uppercase()
+            candidates.filter { id ->
+                val pos = insights[id]?.position?.uppercase()
+                pos == wanted || (wanted == "DEF" && pos == "DST") || (wanted == "DST" && pos == "DEF")
+            }
+        }
+
+        return filtered.mapNotNull { id ->
             val insight = insights[id] ?: return@mapNotNull null
             val (priority, factors) = score(insight)
             if (factors.size < 2) return@mapNotNull null
@@ -66,7 +87,7 @@ class WaiverWireAnalyzer(
                 playerId = id,
                 priorityScore = priority,
                 suggestedFaabPct = faab,
-                dropCandidates = emptyList(),
+                dropCandidates = suggestDropCandidates(insight.position, benchInsights),
                 score = confidenceScore,
                 confidence = Confidence.fromScore(confidenceScore),
                 rationale = Rationale(
@@ -148,6 +169,31 @@ class WaiverWireAnalyzer(
         }
 
         return raw.coerceIn(0, 100) to factors
+    }
+
+    /**
+     * Rank the caller's bench by weakest projection first, preferring players
+     * at the same position as the incoming add (so a WR add suggests drop of
+     * the weakest bench WR, then the weakest bench RB/TE, then everyone else).
+     *
+     * Returned in "worst first" order — the UI renders the first entry as the
+     * default drop. Kept internal to the analyzer because it's not valuable on
+     * its own.
+     */
+    internal fun suggestDropCandidates(
+        addPosition: String,
+        benchInsights: Map<String, PlayerInsight>,
+    ): List<String> {
+        if (benchInsights.isEmpty()) return emptyList()
+        val addPos = addPosition.uppercase()
+        val sameFlex = setOf("RB", "WR", "TE")
+        return benchInsights.entries.sortedWith(
+            compareBy(
+                { if (it.value.position.uppercase() == addPos) 0 else 1 },
+                { if (it.value.position.uppercase() in sameFlex && addPos in sameFlex) 2 else 3 },
+                { it.value.projection.median },
+            )
+        ).map { it.key }
     }
 
     /**

@@ -1,9 +1,11 @@
 package com.sleepyio.sleepyio
 
+import com.sleepyio.sleepyio.insight.model.FantasyImpact
 import com.sleepyio.sleepyio.insight.model.GameEnvironment
 import com.sleepyio.sleepyio.insight.model.InjuryStatus
 import com.sleepyio.sleepyio.insight.model.MatchupGrade
 import com.sleepyio.sleepyio.insight.model.MatchupRating
+import com.sleepyio.sleepyio.insight.model.NewsBlurb
 import com.sleepyio.sleepyio.insight.model.PlayerInsight
 import com.sleepyio.sleepyio.insight.model.ProjectionRange
 import com.sleepyio.sleepyio.insight.model.UsageTrend
@@ -65,6 +67,7 @@ internal fun playerInsight(
     windMph: Int? = 0,
     dome: Boolean = false,
     week: Int = 7,
+    recentNews: List<NewsBlurb> = emptyList(),
 ): PlayerInsight = PlayerInsight(
     playerId = playerId,
     fullName = fullName,
@@ -94,5 +97,18 @@ internal fun playerInsight(
         temperatureF = 60,
         dome = dome,
     ),
-    recentNews = emptyList(),
+    recentNews = recentNews,
+)
+
+/** Build a deterministic news blurb for tests. */
+internal fun newsBlurb(
+    headline: String = "headline",
+    impact: FantasyImpact = FantasyImpact.NEGATIVE,
+    publishedEpochMs: Long = 0L,
+): NewsBlurb = NewsBlurb(
+    headline = headline,
+    body = headline,
+    source = "test",
+    publishedEpochMs = publishedEpochMs,
+    fantasyImpact = impact,
 )
