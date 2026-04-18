@@ -25,7 +25,10 @@ import com.sleepyio.sleepyio.cache.SleeperCache
 import com.sleepyio.sleepyio.client.SleeperClient
 import com.sleepyio.sleepyio.client.model.league.SleeperLeague
 import com.sleepyio.sleepyio.client.model.user.SleeperUser
+import com.sleepyio.sleepyio.recommendation.LocalRecommendationService
+import com.sleepyio.sleepyio.recommendation.RecommendationService
 import com.sleepyio.sleepyio.ui.league.LeagueStateScreen
+import com.sleepyio.sleepyio.ui.recommendation.LeagueAdvisorScreen
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.ui.tooling.preview.Preview
@@ -36,7 +39,8 @@ import sleepyio.composeapp.generated.resources.sleeper_logo
 enum class NavigationScreen {
     USER_LOGIN,
     LEAGUE_LIST,
-    LEAGUE_STATE
+    LEAGUE_STATE,
+    LEAGUE_ADVISOR
 }
 
 @Composable
@@ -47,56 +51,81 @@ fun App() {
         value = SleeperCache
     })
 
+    val recommendationService = remember { RecommendationService.default() }
+
     MyTheme {
-        var currentScreen by remember { mutableStateOf(NavigationScreen.USER_LOGIN) }
-        var username by remember { mutableStateOf("thehippokid") }
-        var user: SleeperUser? by remember { mutableStateOf(null) }
-        var selectedLeague: SleeperLeague? by remember { mutableStateOf(null) }
+        CompositionLocalProvider(LocalRecommendationService provides recommendationService) {
+            var currentScreen by remember { mutableStateOf(NavigationScreen.USER_LOGIN) }
+            var username by remember { mutableStateOf("thehippokid") }
+            var user: SleeperUser? by remember { mutableStateOf(null) }
+            var selectedLeague: SleeperLeague? by remember { mutableStateOf(null) }
+            var advisorRosterId: Long? by remember { mutableStateOf(null) }
 
-        Box(
-            modifier = Modifier
-                .background(Theme[colors][background])
-                .safeContentPadding()
-                .fillMaxSize()
-        ) {
-            when (currentScreen) {
-                NavigationScreen.USER_LOGIN -> {
-                    UserLoginScreen(
-                        initialUsername = username,
-                        onUserFound = { foundUser ->
-                            user = foundUser
-                            currentScreen = NavigationScreen.LEAGUE_LIST
-                        },
-                        onUsernameChanged = { username = it }
-                    )
-                }
-
-                NavigationScreen.LEAGUE_LIST -> {
-                    user?.let { currentUser ->
-                        LeagueListScreen(
-                            user = currentUser,
-                            onLeagueSelected = { league ->
-                                selectedLeague = league
-                                currentScreen = NavigationScreen.LEAGUE_STATE
+            Box(
+                modifier = Modifier
+                    .background(Theme[colors][background])
+                    .safeContentPadding()
+                    .fillMaxSize()
+            ) {
+                when (currentScreen) {
+                    NavigationScreen.USER_LOGIN -> {
+                        UserLoginScreen(
+                            initialUsername = username,
+                            onUserFound = { foundUser ->
+                                user = foundUser
+                                currentScreen = NavigationScreen.LEAGUE_LIST
                             },
-                            onBackToLogin = {
-                                currentScreen = NavigationScreen.USER_LOGIN
-                                user = null
-                                selectedLeague = null
-                            }
+                            onUsernameChanged = { username = it }
                         )
                     }
-                }
 
-                NavigationScreen.LEAGUE_STATE -> {
-                    selectedLeague?.let { league ->
-                        LeagueStateNavigationScreen(
-                            league = league,
-                            onBackToLeagues = {
-                                currentScreen = NavigationScreen.LEAGUE_LIST
-                                selectedLeague = null
-                            }
-                        )
+                    NavigationScreen.LEAGUE_LIST -> {
+                        user?.let { currentUser ->
+                            LeagueListScreen(
+                                user = currentUser,
+                                onLeagueSelected = { league ->
+                                    selectedLeague = league
+                                    currentScreen = NavigationScreen.LEAGUE_STATE
+                                },
+                                onBackToLogin = {
+                                    currentScreen = NavigationScreen.USER_LOGIN
+                                    user = null
+                                    selectedLeague = null
+                                }
+                            )
+                        }
+                    }
+
+                    NavigationScreen.LEAGUE_STATE -> {
+                        selectedLeague?.let { league ->
+                            LeagueStateNavigationScreen(
+                                league = league,
+                                currentUser = user,
+                                onBackToLeagues = {
+                                    currentScreen = NavigationScreen.LEAGUE_LIST
+                                    selectedLeague = null
+                                },
+                                onOpenAdvisor = { rosterId ->
+                                    advisorRosterId = rosterId
+                                    currentScreen = NavigationScreen.LEAGUE_ADVISOR
+                                }
+                            )
+                        }
+                    }
+
+                    NavigationScreen.LEAGUE_ADVISOR -> {
+                        val league = selectedLeague
+                        val rosterId = advisorRosterId
+                        if (league != null && rosterId != null) {
+                            LeagueAdvisorNavigationScreen(
+                                league = league,
+                                rosterId = rosterId,
+                                onBack = {
+                                    currentScreen = NavigationScreen.LEAGUE_STATE
+                                    advisorRosterId = null
+                                },
+                            )
+                        }
                     }
                 }
             }
@@ -210,7 +239,71 @@ fun LeagueListScreen(
 @Composable
 fun LeagueStateNavigationScreen(
     league: SleeperLeague,
-    onBackToLeagues: () -> Unit
+    currentUser: SleeperUser?,
+    onBackToLeagues: () -> Unit,
+    onOpenAdvisor: (rosterId: Long) -> Unit,
+) {
+    // Resolve the signed-in user's roster inside this league so the Advisor
+    // button can hand it to LeagueAdvisorScreen. Stays null until the client
+    // returns — the button disables itself in that window.
+    var advisorRosterId: Long? by remember(league.leagueId, currentUser?.userId) {
+        mutableStateOf(null)
+    }
+    LaunchedEffect(league.leagueId, currentUser?.userId) {
+        val userId = currentUser?.userId ?: return@LaunchedEffect
+        try {
+            val rosters = SleeperClient.getRostersInLeague(league.leagueId)
+            advisorRosterId = rosters
+                .firstOrNull { it.ownerId == userId }
+                ?.rosterId
+                ?.toLong()
+        } catch (_: Exception) {
+            advisorRosterId = null
+        }
+    }
+
+    Column(
+        modifier = Modifier.fillMaxSize()
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Button(onClick = onBackToLeagues) {
+                    Text("← Back to Leagues")
+                }
+                Button(
+                    onClick = { advisorRosterId?.let(onOpenAdvisor) },
+                    enabled = advisorRosterId != null,
+                ) {
+                    Text("Advisor")
+                }
+            }
+            Text(
+                text = league.leagueName ?: "League",
+                style = MaterialTheme.typography.headlineSmall
+            )
+        }
+
+        LeagueStateScreen(
+            leagueId = league.leagueId,
+            modifier = Modifier.fillMaxSize()
+        )
+    }
+}
+
+@Composable
+fun LeagueAdvisorNavigationScreen(
+    league: SleeperLeague,
+    rosterId: Long,
+    onBack: () -> Unit,
 ) {
     Column(
         modifier = Modifier.fillMaxSize()
@@ -222,8 +315,8 @@ fun LeagueStateNavigationScreen(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Button(onClick = onBackToLeagues) {
-                Text("← Back to Leagues")
+            Button(onClick = onBack) {
+                Text("← Back to League")
             }
             Text(
                 text = league.leagueName ?: "League",
@@ -231,9 +324,10 @@ fun LeagueStateNavigationScreen(
             )
         }
 
-        LeagueStateScreen(
-            leagueId = league.leagueId,
-            modifier = Modifier.fillMaxSize()
+        LeagueAdvisorScreen(
+            league = league,
+            rosterId = rosterId,
+            modifier = Modifier.fillMaxSize(),
         )
     }
 }

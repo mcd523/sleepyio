@@ -4,5 +4,18 @@
     <dict>
         <key>CADisableMinimumFrameDurationOnPhone</key>
         <true/>
+        <key>NSFaceIDUsageDescription</key>
+        <string>sleepy.io uses Face ID to protect access to your league credentials.</string>
+        <key>CFBundleURLTypes</key>
+        <array>
+            <dict>
+                <key>CFBundleURLName</key>
+                <string>com.sleepyio.sleepyio.deeplink</string>
+                <key>CFBundleURLSchemes</key>
+                <array>
+                    <string>sleepyio</string>
+                </array>
+            </dict>
+        </array>
     </dict>
 </plist>
